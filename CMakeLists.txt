@@ -20,13 +20,11 @@ find_package(ANTLR REQUIRED)
 
 ### Project ###
 # Call macro to add lexer and grammar to your build dependencies.
-antlr_target(lexy2Parser Expr.g4 VISITOR OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/libs/)
+antlr_target(lexy2Parser Expr.g4 LISTENER OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/libs/)
 
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 add_executable(lexy2 ${SRC_FILES} ${ANTLR_lexy2Parser_CXX_OUTPUTS})
-target_include_directories(lexy2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(lexy2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/libs/)
 
 # link required libraries
 target_link_libraries(lexy2 antlr4_static ${SYSTEM_LIBS})
-
-

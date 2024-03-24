@@ -45,3 +45,10 @@ CTestTestfile.cmake
 _deps
 build/
 libs/
+
+# ANTLR extension
+.antlr/
+
+# VS Code
+.vscode/c_cpp_properties.json
+.vscode/settings.json 
