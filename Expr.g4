@@ -1,20 +1,64 @@
 grammar Expr;
-LEFT_PARENTHESIS: '(';
-RIGHT_PARENTHESIS: ')';
-CARET: '^';
-STAR: '*';
-SLASH: '/';
-PLUS: '+';
-MINUS: '-';
-NUMBER: [0-9]+;
-WHITESPACE: [ \r\n\t]+ -> skip;
 
-start: expression EOF;
+IDENTIFIER: [a-zA-Z0-9_]+;
+TYPE_ID: [a-zA-Z0-9_]+;
+INTEGER_LITERAL: [0-9]+;
+FLOAT_LITERAL: [0-9]+ '.' [0-9]*;
+BOOL_LITERAL: 'true' | 'false';
 
-expression:
-	NUMBER																# Number
-	| MINUS right = expression											# Negation
-	| LEFT_PARENTHESIS inner = expression RIGHT_PARENTHESIS				# Parentheses
-	| left = expression operator = CARET right = expression				# Power
-	| left = expression operator = (STAR | SLASH) right = expression	# MultiplicationOrDivision
-	| left = expression operator = (PLUS | MINUS) right = expression	# AdditionOrSubtraction;
+expr: assignmentExpr | expr ',' assignmentExpr;
+
+assignmentExpr:
+	IDENTIFIER assignmentOperator assignmentExpr
+	| conditionalExpr;
+
+assignmentOperator: '=' | '+=' | '*=' | '/=' | '%=';
+
+conditionalExpr:
+	logicalOrExpr
+	| logicalOrExpr '?' expr ':' assignmentExpr;
+
+logicalOrExpr:
+	logicalAndExpr
+	| logicalOrExpr '||' logicalAndExpr;
+
+logicalAndExpr: equalityExpr | logicalAndExpr '&&' equalityExpr;
+
+equalityExpr:
+	relationalExpr
+	| equalityExpr '==' relationalExpr
+	| equalityExpr '!=' relationalExpr;
+
+relationalExpr:
+	additiveExpr
+	| relationalExpr '<' additiveExpr
+	| relationalExpr '>' additiveExpr
+	| relationalExpr '>=' additiveExpr
+	| relationalExpr '<=' additiveExpr;
+
+additiveExpr:
+	multiplicativeExpr
+	| additiveExpr '+' multiplicativeExpr
+	| additiveExpr '-' multiplicativeExpr;
+
+multiplicativeExpr:
+	castExpr
+	| multiplicativeExpr '*' castExpr
+	| multiplicativeExpr '/' castExpr
+	| multiplicativeExpr '%' castExpr;
+
+castExpr: unaryExpr | '(' TYPE_ID ')' castExpr;
+
+unaryExpr:
+	unaryOperator castExpr
+	| IDENTIFIER '.' IDENTIFIER
+	| IDENTIFIER '(' exprList ')'
+	| primaryExpr;
+
+unaryOperator: '+' | '-' | '!';
+
+primaryExpr: literal | IDENTIFIER | '(' expr ')';
+
+exprList: expr*;
+
+literal: INTEGER_LITERAL | FLOAT_LITERAL | BOOL_LITERAL;
