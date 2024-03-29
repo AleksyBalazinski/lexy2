@@ -1,64 +1,61 @@
 grammar Expr;
 
-IDENTIFIER: [a-zA-Z0-9_]+;
-TYPE_ID: [a-zA-Z0-9_]+;
+TYPE_ID: [a-zA-Z_][a-zA-Z0-9_]+;
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]+;
+
 INTEGER_LITERAL: [0-9]+;
 FLOAT_LITERAL: [0-9]+ '.' [0-9]*;
 BOOL_LITERAL: 'true' | 'false';
+WHITESPACE: [ \r\n\t]+ -> skip;
 
-expr: assignmentExpr | expr ',' assignmentExpr;
+expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
 
 assignmentExpr:
-	IDENTIFIER assignmentOperator assignmentExpr
-	| conditionalExpr;
-
-assignmentOperator: '=' | '+=' | '*=' | '/=' | '%=';
+	conditionalExpr													# fwd01
+	| IDENTIFIER ('=' | '+=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
 
 conditionalExpr:
-	logicalOrExpr
-	| logicalOrExpr '?' expr ':' assignmentExpr;
+	logicalOrExpr														# fwd05
+	| cond = logicalOrExpr '?' then = expr ':' else = assignmentExpr	# Ternary;
 
 logicalOrExpr:
-	logicalAndExpr
-	| logicalOrExpr '||' logicalAndExpr;
+	logicalAndExpr						# fwd07
+	| logicalOrExpr '||' logicalAndExpr	# logicalOr;
 
-logicalAndExpr: equalityExpr | logicalAndExpr '&&' equalityExpr;
+logicalAndExpr:
+	equalityExpr										# fwd10
+	| left = logicalAndExpr '&&' right = equalityExpr	# LogicalAnd;
 
 equalityExpr:
-	relationalExpr
-	| equalityExpr '==' relationalExpr
-	| equalityExpr '!=' relationalExpr;
+	relationalExpr													# fwd20
+	| left = equalityExpr op = ('==' | '!=') right = relationalExpr	# Equality;
 
 relationalExpr:
-	additiveExpr
-	| relationalExpr '<' additiveExpr
-	| relationalExpr '>' additiveExpr
-	| relationalExpr '>=' additiveExpr
-	| relationalExpr '<=' additiveExpr;
+	additiveExpr																# fwd30
+	| left = relationalExpr op = ('<' | '>' | '>=' | '<=') right = additiveExpr	# Relation;
 
 additiveExpr:
-	multiplicativeExpr
-	| additiveExpr '+' multiplicativeExpr
-	| additiveExpr '-' multiplicativeExpr;
+	multiplicativeExpr													# fwd40
+	| left = additiveExpr op = ('+' | '-') right = multiplicativeExpr	# Additive;
 
 multiplicativeExpr:
-	castExpr
-	| multiplicativeExpr '*' castExpr
-	| multiplicativeExpr '/' castExpr
-	| multiplicativeExpr '%' castExpr;
+	castExpr															# fwd50
+	| left = multiplicativeExpr op = ('*' | '/' | '%') right = castExpr	# Multiplicative;
 
-castExpr: unaryExpr | '(' TYPE_ID ')' castExpr;
+castExpr:
+	unaryExpr							# fwd60
+	| left = castExpr ' as ' TYPE_ID	# Cast;
 
 unaryExpr:
-	unaryOperator castExpr
-	| IDENTIFIER '.' IDENTIFIER
-	| IDENTIFIER '(' exprList ')'
-	| primaryExpr;
+	primaryExpr										# fwd70
+	| op = ('+' | '-' | '!') right = primaryExpr	# Unary;
 
-unaryOperator: '+' | '-' | '!';
+primaryExpr:
+	literal			# fwd80
+	| '(' expr ')'	# Parens
+	| IDENTIFIER	# Idenitifer;
 
-primaryExpr: literal | IDENTIFIER | '(' expr ')';
-
-exprList: expr*;
-
-literal: INTEGER_LITERAL | FLOAT_LITERAL | BOOL_LITERAL;
+literal:
+	INTEGER_LITERAL	# IntegerLiteral
+	| FLOAT_LITERAL	# FloatLiteral
+	| BOOL_LITERAL	# BoolLiteral;
