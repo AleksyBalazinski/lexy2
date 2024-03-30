@@ -1,6 +1,1 @@
-let gravConst = 6.67;
-let earthMass = 5.97;
-let moonMass = (1 / 81.0) * earthMass;
-let distance = 3.840;
-let force = gravConst * earthMass * moonMass / (distance * distance);
-__print force;
+__print 2 / 3.15;

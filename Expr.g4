@@ -1,10 +1,11 @@
 grammar Expr;
 
 TYPE_ID: 'double' | 'int' | 'bool'; // TODO user defined types
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]+;
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
 
 INTEGER_LITERAL: [0-9]+;
-FLOAT_LITERAL: [0-9]+ '.' [0-9]*;
+FLOAT_LITERAL:
+	[0-9]+ '.' [0-9]+ (('e' | 'E') ('+' | '-')? [0-9]+)?;
 BOOL_LITERAL: 'true' | 'false';
 WHITESPACE: [ \r\n\t]+ -> skip;
 

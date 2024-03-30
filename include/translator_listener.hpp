@@ -65,6 +65,9 @@ class TranslatorListener : public Lexy2BaseListener {
   }
 
   void exitDeclStatement(Lexy2Parser::DeclStatementContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     auto identifier = ctx->IDENTIFIER()->getText();
     auto initializer = valueStack.top();
     valueStack.pop();
@@ -152,7 +155,7 @@ class TranslatorListener : public Lexy2BaseListener {
       subWithRightCast(left, right);
     }
     if (left.type == "int" && right.type == "double") {
-      subWithRightCast(right, left);
+      subWithLeftCast(left, right);
     }
   }
 
@@ -176,16 +179,7 @@ class TranslatorListener : public Lexy2BaseListener {
       divideRegisters(left, right);
     }
     if (op == "%") {
-      if (left.type == "int" && right.type == "int") {
-        auto regStr = generator.remI32(left.name, right.name);
-        valueStack.push(Value(regStr, "int"));
-      } else {
-        auto pos = getLineCol(ctx);
-        errorHandler.reportError(
-            pos.first, pos.second,
-            "Operator % can only be applioed to int operands");
-        inErrorMode = true;
-      }
+      modRegisters(left, right, ctx);
     }
   }
 
@@ -219,19 +213,38 @@ class TranslatorListener : public Lexy2BaseListener {
       divWithRightCast(left, right);
     }
     if (left.type == "int" && right.type == "double") {
-      divWithRightCast(right, left);
+      divWithLeftCast(left, right);
     }
   }
 
-  void modRegisters(const Value& left, const Value& right) {}
+  void modRegisters(const Value& left, const Value& right,
+                    antlr4::ParserRuleContext* ctx) {
+    if (left.type == "int" && right.type == "int") {
+      auto regStr = generator.remI32(left.name, right.name);
+      valueStack.push(Value(regStr, "int"));
+    } else {
+      auto pos = getLineCol(ctx);
+      errorHandler.reportError(
+          pos.first, pos.second,
+          "Operator % can only be applioed to int operands");
+      inErrorMode = true;
+    }
+  }
 
   void exitCast(Lexy2Parser::CastContext* ctx) override {
     if (inErrorMode)
       return;
 
-    const auto value = valueStack.top();
+    auto value = valueStack.top();
     valueStack.pop();
+    if (value.category == Value::Category::MEMORY) {
+      value = load(value);
+    }
     const auto targetType = ctx->TYPE_ID()->getText();
+    castRegister(value, targetType);
+  }
+
+  void castRegister(const Value& value, const std::string& targetType) {
     if (value.type == targetType) {
       valueStack.push(value);  // do nothing
     }
@@ -253,20 +266,32 @@ class TranslatorListener : public Lexy2BaseListener {
     if (inErrorMode)
       return;
 
-    const auto value = valueStack.top();
+    auto value = valueStack.top();
     valueStack.pop();
+    if (value.category == Value::Category::MEMORY) {
+      value = load(value);
+    }
 
-    std::string regStr;
     if (ctx->op->getText() == "-") {
-      if (value.type == "int") {
-        regStr = generator.subI32("0", value.name);
-        valueStack.push(Value(regStr, "int"));
-      } else if (value.type == "double") {
-        regStr = generator.subDouble("0", value.name);
-        valueStack.push(Value(regStr, "double"));
-      }
+      negateRegister(value);
+    }
+    if (ctx->op->getText() == "+") {
+      plusRegister(value);
     }
   }
+
+  void negateRegister(const Value& value) {
+    std::string regStr;
+    if (value.type == "int") {
+      regStr = generator.subI32("0", value.name);
+      valueStack.push(Value(regStr, "int"));
+    } else if (value.type == "double") {
+      regStr = generator.subDouble("0.0", value.name);
+      valueStack.push(Value(regStr, "double"));
+    }
+  }
+
+  void plusRegister(const Value& value) { valueStack.push(value); }
 
   void exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) override {
     if (inErrorMode)
@@ -278,7 +303,7 @@ class TranslatorListener : public Lexy2BaseListener {
       valueStack.push(loc->second);
     } else {
       errorHandler.reportError(getLineCol(ctx),
-                               "Identifier '" + loc->first + "' not declared");
+                               "Identifier '" + id + "' not declared");
       inErrorMode = true;
     }
   }
@@ -331,6 +356,12 @@ class TranslatorListener : public Lexy2BaseListener {
     valueStack.push(Value(regStr, "double"));
   }
 
+  void divWithLeftCast(const Value& left, const Value& right) {
+    auto tempRegStr = generator.castI32ToDouble(left.name);
+    auto regStr = generator.divDouble(tempRegStr, right.name);
+    valueStack.push(Value(regStr, "double"));
+  }
+
   void addWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.addDouble(left.name, tempRegStr);
@@ -340,6 +371,12 @@ class TranslatorListener : public Lexy2BaseListener {
   void subWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.subDouble(left.name, tempRegStr);
+    valueStack.push(Value(regStr, "double"));
+  }
+
+  void subWithLeftCast(const Value& left, const Value& right) {
+    auto tempRegStr = generator.castI32ToDouble(left.name);
+    auto regStr = generator.subDouble(tempRegStr, right.name);
     valueStack.push(Value(regStr, "double"));
   }
 

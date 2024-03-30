@@ -1,0 +1,7 @@
+let acceleration = 9.8;
+let time = 3.2e-2;
+let initial_velocity = 2;
+
+let distance = initial_velocity * time + 0.5 * acceleration * time * time;
+let initial_dist = -5.2;
+__print distance + initial_dist;
