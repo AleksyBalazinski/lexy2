@@ -91,6 +91,14 @@ std::string LLVMGenerator::divDouble(const std::string& val1,
   return regStr;
 }
 
+std::string LLVMGenerator::remI32(const std::string& val1,
+                                  const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = srem i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
 std::string LLVMGenerator::castI32ToDouble(const std::string& id) {
   const auto regStr = getRegStr();
   text += regStr + " = sitofp i32 " + id + " to double\n";

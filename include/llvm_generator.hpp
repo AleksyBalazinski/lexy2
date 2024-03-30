@@ -29,6 +29,8 @@ class LLVMGenerator {
   std::string divI32(const std::string& val1, const std::string& val2);
   std::string divDouble(const std::string& val1, const std::string& val2);
 
+  std::string remI32(const std::string& val1, const std::string& val2);
+
   std::string castI32ToDouble(const std::string& id);
   std::string castDoubleToI32(const std::string& id);
 

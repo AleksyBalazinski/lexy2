@@ -29,8 +29,14 @@ int main(int argc, const char* argv[]) {
   Lexy2Parser parser(&tokens);
 
   tree::ParseTree* tree = parser.translationUnit();
-  TranslatorListener translationListener;
+  ErrorHandler errorHandler(sourceFilename);
+  TranslatorListener translationListener(errorHandler);
   tree::ParseTreeWalker::DEFAULT.walk(&translationListener, tree);
+
+  if (errorHandler.hasErrors()) {
+    std::cerr << errorHandler.getErrors();
+    return 2;
+  }
 
   const auto llvmCode = translationListener.getCode(sourceFilename);
   const auto llvmIRName =

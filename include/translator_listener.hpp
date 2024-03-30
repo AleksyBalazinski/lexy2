@@ -4,7 +4,9 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 #include "Lexy2BaseListener.h"
+#include "error_handler.hpp"
 #include "llvm_generator.hpp"
 
 struct Variable {
@@ -28,14 +30,30 @@ class TranslatorListener : public Lexy2BaseListener {
   std::map<std::string, Value> symbolTable;
   LLVMGenerator generator;
 
+  ErrorHandler& errorHandler;
+  bool inErrorMode = false;
+  bool encounteredErrors = false;
+
  public:
+  TranslatorListener(ErrorHandler& errorHandler) : errorHandler(errorHandler) {}
   void exitTranslationUnit(Lexy2Parser::TranslationUnitContext* ctx) override {}
 
-  void exitStatement(Lexy2Parser::StatementContext* ctx) override {}
+  void exitStatement(Lexy2Parser::StatementContext* ctx) override {
+    if (inErrorMode) {  // synchronize
+      encounteredErrors = true;
+      inErrorMode = false;
+      while (!valueStack.empty()) {
+        valueStack.pop();
+      }
+    }
+  }
 
   void exitExprStatement(Lexy2Parser::ExprStatementContext* ctx) override {}
 
   void exitPrintIntrinsic(Lexy2Parser::PrintIntrinsicContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     auto value = valueStack.top();
     valueStack.pop();
     if (value.type == "int") {
@@ -63,6 +81,9 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitRelation(Lexy2Parser::RelationContext* ctx) override {}
 
   void exitAdditive(Lexy2Parser::AdditiveContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     auto [left, right] = popTwo();
     auto op = ctx->op->getText();
     if (op == "+") {
@@ -100,6 +121,9 @@ class TranslatorListener : public Lexy2BaseListener {
   }
 
   void exitMultiplicative(Lexy2Parser::MultiplicativeContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     auto [left, right] = popTwo();
     auto op = ctx->op->getText();
     if (op == "*") {
@@ -134,9 +158,24 @@ class TranslatorListener : public Lexy2BaseListener {
         divWithRightCast(right, left);
       }
     }
+    if (op == "%") {
+      if (left.type == "int" && right.type == "int") {
+        auto regStr = generator.remI32(left.name, right.name);
+        valueStack.push(Value(regStr, "int"));
+      } else {
+        auto pos = getLineCol(ctx->getStart());
+        errorHandler.reportError(
+            pos.first, pos.second,
+            "Operator % can only be applioed to int operands");
+        inErrorMode = true;
+      }
+    }
   }
 
   void exitCast(Lexy2Parser::CastContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     const auto value = valueStack.top();
     valueStack.pop();
     const auto targetType = ctx->TYPE_ID()->getText();
@@ -158,6 +197,9 @@ class TranslatorListener : public Lexy2BaseListener {
   }
 
   void exitUnary(Lexy2Parser::UnaryContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     const auto value = valueStack.top();
     valueStack.pop();
 
@@ -174,6 +216,9 @@ class TranslatorListener : public Lexy2BaseListener {
   }
 
   void exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     const auto id = ctx->IDENTIFIER()->getText();
     const auto loc = symbolTable.find(id);
     if (loc != symbolTable.end()) {
@@ -187,14 +232,23 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitParens(Lexy2Parser::ParensContext* ctx) override {}
 
   void exitIntegerLiteral(Lexy2Parser::IntegerLiteralContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     valueStack.push(Value(ctx->INTEGER_LITERAL()->getText(), "int"));
   }
 
   void exitFloatLiteral(Lexy2Parser::FloatLiteralContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     valueStack.push(Value(ctx->FLOAT_LITERAL()->getText(), "double"));
   }
 
   void exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) override {
+    if (inErrorMode)
+      return;
+
     valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), "bool"));
   }
 
@@ -233,5 +287,10 @@ class TranslatorListener : public Lexy2BaseListener {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.subDouble(left.name, tempRegStr);
     valueStack.push(Value(regStr, "double"));
+  }
+
+  std::pair<int, int> getLineCol(antlr4::Token* tok) {
+    return std::make_pair<int, int>(tok->getLine(),
+                                    tok->getCharPositionInLine());
   }
 };

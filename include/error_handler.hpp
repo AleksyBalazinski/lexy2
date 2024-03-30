@@ -1,0 +1,39 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+class ErrorHandler {
+  struct Error {
+    Error(int line, int column, std::string msg)
+        : line(line), column(column), msg(std::move(msg)) {}
+    int line;
+    int column;
+    std::string msg;
+
+    std::string getErrStr() const {
+      return std::to_string(line) + ":" + std::to_string(column) +
+             ": error: " + msg + "\n\n";
+    }
+  };
+
+  std::vector<Error> errors;
+  std::string sourceFileName;
+
+ public:
+  ErrorHandler(std::string sourceFileName)
+      : sourceFileName(std::move(sourceFileName)) {}
+  void reportError(int line, int column, std::string msg) {
+    errors.push_back(Error(line, column, msg));
+  }
+
+  std::string getErrors() {
+    std::string report;
+    for (const auto& err : errors) {
+      report += sourceFileName + ":" + err.getErrStr();
+    }
+    return report;
+  }
+
+  bool hasErrors() { return !errors.empty(); }
+};
