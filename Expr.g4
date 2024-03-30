@@ -1,6 +1,6 @@
 grammar Expr;
 
-TYPE_ID: [a-zA-Z_][a-zA-Z0-9_]+;
+TYPE_ID: 'double' | 'int' | 'bool'; // TODO user defined types
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]+;
 
 INTEGER_LITERAL: [0-9]+;

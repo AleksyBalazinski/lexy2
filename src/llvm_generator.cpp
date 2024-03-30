@@ -8,7 +8,7 @@ void LLVMGenerator::declareDouble(const std::string& id) {
   text += "%" + id + " = alloca double\n";
 }
 
-void LLVMGenerator::assginI32(const std::string& id, const std::string& value) {
+void LLVMGenerator::assignI32(const std::string& id, const std::string& value) {
   text += "store i32 " + value + ", i32* %" + id + "\n";
 }
 
@@ -17,14 +17,18 @@ void LLVMGenerator::assignDouble(const std::string& id,
   text += "store double " + value + ", double* %" + id + "\n";
 }
 
-void LLVMGenerator::loadI32(const std::string& id) {
-  text += "%" + std::to_string(reg) + " = load i32, i32* %" + id + "\n";
+std::string LLVMGenerator::loadI32(const std::string& id) {
+  auto regStr = getRegStr();
+  text += regStr + " = load i32, i32* %" + id + "\n";
   reg++;
+  return regStr;
 }
 
-void LLVMGenerator::loadDouble(const std::string& id) {
-  text += "%" + std::to_string(reg) + " = load double, double* %" + id + "\n";
+std::string LLVMGenerator::loadDouble(const std::string& id) {
+  auto regStr = getRegStr();
+  text += regStr + " = load double, double* %" + id + "\n";
   reg++;
+  return regStr;
 }
 
 std::string LLVMGenerator::addI32(const std::string& val1,

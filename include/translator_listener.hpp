@@ -9,19 +9,16 @@
 #include "error_handler.hpp"
 #include "llvm_generator.hpp"
 
-struct Variable {
-  std::string type;
-};
-
 struct Value {
+  enum class Category { REGISTER, MEMORY, CONSTANT };
+  Value(std::string name, std::string type, Category category)
+      : name(std::move(name)), type(std::move(type)), category(category) {}
+
   Value(std::string name, std::string type)
-      : name(std::move(name)), type(std::move(type)) {}
+      : Value(name, type, Category::REGISTER) {}
+
   std::string name;
   std::string type;
-  enum class Category {
-    LLVM_REGISTER,
-    LITERAL,
-  };
   Category category;
 };
 
@@ -56,6 +53,9 @@ class TranslatorListener : public Lexy2BaseListener {
 
     auto value = valueStack.top();
     valueStack.pop();
+    if (value.category == Value::Category::MEMORY) {
+      value = load(value);
+    }
     if (value.type == "int") {
       generator.printI32(value.name);
     }
@@ -64,7 +64,29 @@ class TranslatorListener : public Lexy2BaseListener {
     }
   }
 
-  void exitDeclStatement(Lexy2Parser::DeclStatementContext* ctx) override {}
+  void exitDeclStatement(Lexy2Parser::DeclStatementContext* ctx) override {
+    auto identifier = ctx->IDENTIFIER()->getText();
+    auto initializer = valueStack.top();
+    valueStack.pop();
+    if (symbolTable.find(identifier) != symbolTable.end()) {
+      errorHandler.reportError(
+          getLineCol(ctx), "Identifier '" + identifier + "' already in use");
+      inErrorMode = true;
+      return;
+    }
+    if (initializer.type == "int") {
+      generator.declareI32(identifier);
+      generator.assignI32(identifier, initializer.name);
+      symbolTable.insert(std::make_pair(
+          identifier, Value(identifier, "int", Value::Category::MEMORY)));
+    }
+    if (initializer.type == "double") {
+      generator.declareDouble(identifier);
+      generator.assignDouble(identifier, initializer.name);
+      symbolTable.insert(std::make_pair(
+          identifier, Value(identifier, "double", Value::Category::MEMORY)));
+    }
+  }
 
   void exitComma(Lexy2Parser::CommaContext* ctx) override {}
 
@@ -85,38 +107,52 @@ class TranslatorListener : public Lexy2BaseListener {
       return;
 
     auto [left, right] = popTwo();
+    if (left.category == Value::Category::MEMORY) {
+      left = load(left);
+    }
+    if (right.category == Value::Category::MEMORY) {
+      right = load(right);
+    }
     auto op = ctx->op->getText();
     if (op == "+") {
-      if (left.type == "int" && right.type == "int") {
-        auto regStr = generator.addI32(left.name, right.name);
-        valueStack.push(Value(regStr, "int"));
-      }
-      if (left.type == "double" && right.type == "double") {
-        auto regStr = generator.addDouble(left.name, right.name);
-        valueStack.push(Value(regStr, "double"));
-      }
-      if (left.type == "double" && right.type == "int") {
-        addWithRightCast(left, right);
-      }
-      if (left.type == "int" && right.type == "double") {
-        addWithRightCast(right, left);
-      }
+      addRegisters(left, right);
     }
     if (op == "-") {
-      if (left.type == "int" && right.type == "int") {
-        auto regStr = generator.subI32(left.name, right.name);
-        valueStack.push(Value(regStr, "int"));
-      }
-      if (left.type == "double" && right.type == "double") {
-        auto regStr = generator.subDouble(left.name, right.name);
-        valueStack.push(Value(regStr, "double"));
-      }
-      if (left.type == "double" && right.type == "int") {
-        subWithRightCast(left, right);
-      }
-      if (left.type == "int" && right.type == "double") {
-        subWithRightCast(right, left);
-      }
+      subtractRegisters(left, right);
+    }
+  }
+
+  void addRegisters(const Value& left, const Value& right) {
+    if (left.type == "int" && right.type == "int") {
+      auto regStr = generator.addI32(left.name, right.name);
+      valueStack.push(Value(regStr, "int"));
+    }
+    if (left.type == "double" && right.type == "double") {
+      auto regStr = generator.addDouble(left.name, right.name);
+      valueStack.push(Value(regStr, "double"));
+    }
+    if (left.type == "double" && right.type == "int") {
+      addWithRightCast(left, right);
+    }
+    if (left.type == "int" && right.type == "double") {
+      addWithRightCast(right, left);
+    }
+  }
+
+  void subtractRegisters(const Value& left, const Value& right) {
+    if (left.type == "int" && right.type == "int") {
+      auto regStr = generator.subI32(left.name, right.name);
+      valueStack.push(Value(regStr, "int"));
+    }
+    if (left.type == "double" && right.type == "double") {
+      auto regStr = generator.subDouble(left.name, right.name);
+      valueStack.push(Value(regStr, "double"));
+    }
+    if (left.type == "double" && right.type == "int") {
+      subWithRightCast(left, right);
+    }
+    if (left.type == "int" && right.type == "double") {
+      subWithRightCast(right, left);
     }
   }
 
@@ -125,45 +161,26 @@ class TranslatorListener : public Lexy2BaseListener {
       return;
 
     auto [left, right] = popTwo();
+    if (left.category == Value::Category::MEMORY) {
+      left = load(left);
+    }
+    if (right.category == Value::Category::MEMORY) {
+      right = load(right);
+    }
+
     auto op = ctx->op->getText();
     if (op == "*") {
-      if (left.type == "int" && right.type == "int") {
-        auto regStr = generator.mulI32(left.name, right.name);
-        valueStack.push(Value(regStr, "int"));
-      }
-      if (left.type == "double" && right.type == "double") {
-        auto regStr = generator.mulDouble(left.name, right.name);
-        valueStack.push(Value(regStr, "double"));
-      }
-      if (left.type == "double" && right.type == "int") {
-        mulWithRightCast(left, right);
-      }
-      if (left.type == "int" && right.type == "double") {
-        mulWithRightCast(right, left);
-      }
+      multiplyRegisters(left, right);
     }
     if (op == "/") {
-      if (left.type == "int" && right.type == "int") {
-        auto regStr = generator.divI32(left.name, right.name);
-        valueStack.push(Value(regStr, "int"));
-      }
-      if (left.type == "double" && right.type == "double") {
-        auto regStr = generator.divDouble(left.name, right.name);
-        valueStack.push(Value(regStr, "double"));
-      }
-      if (left.type == "double" && right.type == "int") {
-        divWithRightCast(left, right);
-      }
-      if (left.type == "int" && right.type == "double") {
-        divWithRightCast(right, left);
-      }
+      divideRegisters(left, right);
     }
     if (op == "%") {
       if (left.type == "int" && right.type == "int") {
         auto regStr = generator.remI32(left.name, right.name);
         valueStack.push(Value(regStr, "int"));
       } else {
-        auto pos = getLineCol(ctx->getStart());
+        auto pos = getLineCol(ctx);
         errorHandler.reportError(
             pos.first, pos.second,
             "Operator % can only be applioed to int operands");
@@ -171,6 +188,42 @@ class TranslatorListener : public Lexy2BaseListener {
       }
     }
   }
+
+  void multiplyRegisters(const Value& left, const Value& right) {
+    if (left.type == "int" && right.type == "int") {
+      auto regStr = generator.mulI32(left.name, right.name);
+      valueStack.push(Value(regStr, "int"));
+    }
+    if (left.type == "double" && right.type == "double") {
+      auto regStr = generator.mulDouble(left.name, right.name);
+      valueStack.push(Value(regStr, "double"));
+    }
+    if (left.type == "double" && right.type == "int") {
+      mulWithRightCast(left, right);
+    }
+    if (left.type == "int" && right.type == "double") {
+      mulWithRightCast(right, left);
+    }
+  }
+
+  void divideRegisters(const Value& left, const Value& right) {
+    if (left.type == "int" && right.type == "int") {
+      auto regStr = generator.divI32(left.name, right.name);
+      valueStack.push(Value(regStr, "int"));
+    }
+    if (left.type == "double" && right.type == "double") {
+      auto regStr = generator.divDouble(left.name, right.name);
+      valueStack.push(Value(regStr, "double"));
+    }
+    if (left.type == "double" && right.type == "int") {
+      divWithRightCast(left, right);
+    }
+    if (left.type == "int" && right.type == "double") {
+      divWithRightCast(right, left);
+    }
+  }
+
+  void modRegisters(const Value& left, const Value& right) {}
 
   void exitCast(Lexy2Parser::CastContext* ctx) override {
     if (inErrorMode)
@@ -223,9 +276,10 @@ class TranslatorListener : public Lexy2BaseListener {
     const auto loc = symbolTable.find(id);
     if (loc != symbolTable.end()) {
       valueStack.push(loc->second);
-
     } else {
-      //TODO: error
+      errorHandler.reportError(getLineCol(ctx),
+                               "Identifier '" + loc->first + "' not declared");
+      inErrorMode = true;
     }
   }
 
@@ -265,31 +319,41 @@ class TranslatorListener : public Lexy2BaseListener {
     return std::make_pair(left, right);
   }
 
-  void mulWithRightCast(Value& left, Value& right) {
+  void mulWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.mulDouble(left.name, tempRegStr);
     valueStack.push(Value(regStr, "double"));
   }
 
-  void divWithRightCast(Value& left, Value& right) {
+  void divWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.divDouble(left.name, tempRegStr);
     valueStack.push(Value(regStr, "double"));
   }
 
-  void addWithRightCast(Value& left, Value& right) {
+  void addWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.addDouble(left.name, tempRegStr);
     valueStack.push(Value(regStr, "double"));
   }
 
-  void subWithRightCast(Value& left, Value& right) {
+  void subWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.subDouble(left.name, tempRegStr);
     valueStack.push(Value(regStr, "double"));
   }
 
-  std::pair<int, int> getLineCol(antlr4::Token* tok) {
+  Value load(const Value& val) {
+    if (val.type == "double") {
+      return Value(generator.loadDouble(val.name), "double");
+    }
+    if (val.type == "int") {
+      return Value(generator.loadI32(val.name), "int");
+    }
+  }
+
+  std::pair<int, int> getLineCol(antlr4::ParserRuleContext* ctx) {
+    auto tok = ctx->getStart();
     return std::make_pair<int, int>(tok->getLine(),
                                     tok->getCharPositionInLine());
   }

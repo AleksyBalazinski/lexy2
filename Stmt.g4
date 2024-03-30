@@ -8,4 +8,4 @@ exprStatement: expr ';';
 
 printStatement: '__print' expr ';' # printIntrinsic;
 
-declStatement: 'let' IDENTIFIER (':' TYPE_ID)? '=' expr;
+declStatement: 'let' IDENTIFIER (':' TYPE_ID)? '=' expr ';';

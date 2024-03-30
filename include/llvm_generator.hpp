@@ -11,11 +11,11 @@ class LLVMGenerator {
   void declareI32(const std::string& id);
   void declareDouble(const std::string& id);
 
-  void assginI32(const std::string& id, const std::string& value);
+  void assignI32(const std::string& id, const std::string& value);
   void assignDouble(const std::string& id, const std::string& value);
 
-  void loadI32(const std::string& id);
-  void loadDouble(const std::string& id);
+  std::string loadI32(const std::string& id);
+  std::string loadDouble(const std::string& id);
 
   std::string addI32(const std::string& val1, const std::string& val2);
   std::string addDouble(const std::string& val1, const std::string& val2);

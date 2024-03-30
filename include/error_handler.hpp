@@ -23,8 +23,14 @@ class ErrorHandler {
  public:
   ErrorHandler(std::string sourceFileName)
       : sourceFileName(std::move(sourceFileName)) {}
+
   void reportError(int line, int column, std::string msg) {
     errors.push_back(Error(line, column, msg));
+  }
+
+  void reportError(std::pair<int, int> pos, std::string msg) {
+    auto [line, col] = pos;
+    reportError(line, col, msg);
   }
 
   std::string getErrors() {
