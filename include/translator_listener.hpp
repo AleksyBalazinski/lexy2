@@ -91,10 +91,10 @@ class TranslatorListener : public Lexy2BaseListener {
       valueStack.push(Value(regStr, "double"));
     }
     if (left.type == "double" && right.type == "int") {
-      addWithRightCast(left, right);
+      valueStack.push(addWithRightCast(left, right));
     }
     if (left.type == "int" && right.type == "double") {
-      addWithRightCast(right, left);
+      valueStack.push(addWithRightCast(right, left));
     }
   }
 
@@ -108,10 +108,10 @@ class TranslatorListener : public Lexy2BaseListener {
       valueStack.push(Value(regStr, "double"));
     }
     if (left.type == "double" && right.type == "int") {
-      subWithRightCast(left, right);
+      valueStack.push(subWithRightCast(left, right));
     }
     if (left.type == "int" && right.type == "double") {
-      subWithLeftCast(left, right);
+      valueStack.push(subWithLeftCast(left, right));
     }
   }
 
@@ -125,10 +125,10 @@ class TranslatorListener : public Lexy2BaseListener {
       valueStack.push(Value(regStr, "double"));
     }
     if (left.type == "double" && right.type == "int") {
-      mulWithRightCast(left, right);
+      valueStack.push(mulWithRightCast(left, right));
     }
     if (left.type == "int" && right.type == "double") {
-      mulWithRightCast(right, left);
+      valueStack.push(mulWithRightCast(right, left));
     }
   }
 
@@ -142,10 +142,10 @@ class TranslatorListener : public Lexy2BaseListener {
       valueStack.push(Value(regStr, "double"));
     }
     if (left.type == "double" && right.type == "int") {
-      divWithRightCast(left, right);
+      valueStack.push(divWithRightCast(left, right));
     }
     if (left.type == "int" && right.type == "double") {
-      divWithLeftCast(left, right);
+      valueStack.push(divWithLeftCast(left, right));
     }
   }
 
@@ -194,40 +194,40 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void plusRegister(const Value& value) { valueStack.push(value); }
 
-  void mulWithRightCast(const Value& left, const Value& right) {
+  Value mulWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.mulDouble(left.name, tempRegStr);
-    valueStack.push(Value(regStr, "double"));
+    return Value(regStr, "double");
   }
 
-  void divWithRightCast(const Value& left, const Value& right) {
+  Value divWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.divDouble(left.name, tempRegStr);
-    valueStack.push(Value(regStr, "double"));
+    return Value(regStr, "double");
   }
 
-  void divWithLeftCast(const Value& left, const Value& right) {
+  Value divWithLeftCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(left.name);
     auto regStr = generator.divDouble(tempRegStr, right.name);
-    valueStack.push(Value(regStr, "double"));
+    return Value(regStr, "double");
   }
 
-  void addWithRightCast(const Value& left, const Value& right) {
+  Value addWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.addDouble(left.name, tempRegStr);
-    valueStack.push(Value(regStr, "double"));
+    return Value(regStr, "double");
   }
 
-  void subWithRightCast(const Value& left, const Value& right) {
+  Value subWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
     auto regStr = generator.subDouble(left.name, tempRegStr);
-    valueStack.push(Value(regStr, "double"));
+    return Value(regStr, "double");
   }
 
-  void subWithLeftCast(const Value& left, const Value& right) {
+  Value subWithLeftCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(left.name);
     auto regStr = generator.subDouble(tempRegStr, right.name);
-    valueStack.push(Value(regStr, "double"));
+    return Value(regStr, "double");
   }
 
   Value load(const Value& val) {
