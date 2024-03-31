@@ -1,1 +1,5 @@
-__print 2 / 3.15;
+let x = 3 * 3;
+let y: double = x;
+let z: int = x + 3;
+let foo: int = 3.14;
+__print foo;

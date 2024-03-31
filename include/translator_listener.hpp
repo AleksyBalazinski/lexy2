@@ -70,12 +70,27 @@ class TranslatorListener : public Lexy2BaseListener {
 
     auto identifier = ctx->IDENTIFIER()->getText();
     auto initializer = valueStack.top();
+    if (initializer.category == Value::Category::MEMORY) {
+      initializer = load(initializer);
+    }
     valueStack.pop();
     if (symbolTable.find(identifier) != symbolTable.end()) {
       errorHandler.reportError(
           getLineCol(ctx), "Identifier '" + identifier + "' already in use");
       inErrorMode = true;
       return;
+    }
+    if (ctx->TYPE_ID() != nullptr) {
+      if (ctx->TYPE_ID()->getText() == "double") {
+        castRegister(initializer, "double");
+        initializer = valueStack.top();
+        valueStack.pop();
+      }
+      if (ctx->TYPE_ID()->getText() == "int") {
+        castRegister(initializer, "int");
+        initializer = valueStack.top();
+        valueStack.pop();
+      }
     }
     if (initializer.type == "int") {
       generator.declareI32(identifier);
