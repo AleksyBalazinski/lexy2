@@ -21,10 +21,10 @@ void TranslatorListener::exitPrintIntrinsic(
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
   }
-  if (value.type == "int") {
+  if (value.typeID == INT_TYPE_ID) {
     generator.printI32(value.name);
   }
-  if (value.type == "double") {
+  if (value.typeID == DOUBLE_TYPE_ID) {
     generator.printDouble(value.name);
   }
 }
@@ -47,21 +47,23 @@ void TranslatorListener::exitDeclStatement(
     return;
   }
   if (ctx->TYPE_ID() != nullptr) {
-    castRegister(initializer, ctx->TYPE_ID()->getText());
+    valueStack.push(
+        castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]));
     initializer = valueStack.top();
     valueStack.pop();
   }
-  if (initializer.type == "int") {
+  if (initializer.typeID == INT_TYPE_ID) {
     generator.declareI32(identifier);
     generator.assignI32(identifier, initializer.name);
     symbolTable.insert(std::make_pair(
-        identifier, Value(identifier, "int", Value::Category::MEMORY)));
+        identifier, Value(identifier, INT_TYPE_ID, Value::Category::MEMORY)));
   }
-  if (initializer.type == "double") {
+  if (initializer.typeID == DOUBLE_TYPE_ID) {
     generator.declareDouble(identifier);
     generator.assignDouble(identifier, initializer.name);
     symbolTable.insert(std::make_pair(
-        identifier, Value(identifier, "double", Value::Category::MEMORY)));
+        identifier,
+        Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
   }
 }
 
@@ -78,10 +80,10 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
   }
   auto op = ctx->op->getText();
   if (op == "+") {
-    addRegisters(left, right);
+    valueStack.push(addRegisters(left, right));
   }
   if (op == "-") {
-    subtractRegisters(left, right);
+    valueStack.push(subtractRegisters(left, right));
   }
 }
 
@@ -100,13 +102,16 @@ void TranslatorListener::exitMultiplicative(
 
   auto op = ctx->op->getText();
   if (op == "*") {
-    multiplyRegisters(left, right);
+    valueStack.push(multiplyRegisters(left, right));
   }
   if (op == "/") {
-    divideRegisters(left, right);
+    valueStack.push(divideRegisters(left, right));
   }
   if (op == "%") {
-    modRegisters(left, right, ctx);
+    const auto val = modRegisters(left, right, ctx);
+    if (val.has_value()) {
+      valueStack.push(*val);
+    }
   }
 }
 
@@ -120,7 +125,7 @@ void TranslatorListener::exitCast(Lexy2Parser::CastContext* ctx) {
     value = load(value);
   }
   const auto targetType = ctx->TYPE_ID()->getText();
-  castRegister(value, targetType);
+  valueStack.push(castRegister(value, typeIDs[targetType]));
 }
 
 void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
@@ -134,10 +139,10 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
   }
 
   if (ctx->op->getText() == "-") {
-    negateRegister(value);
+    valueStack.push(negateRegister(value));
   }
   if (ctx->op->getText() == "+") {
-    plusRegister(value);
+    valueStack.push(plusRegister(value));
   }
 }
 
@@ -161,7 +166,7 @@ void TranslatorListener::exitIntegerLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->INTEGER_LITERAL()->getText(), "int"));
+  valueStack.push(Value(ctx->INTEGER_LITERAL()->getText(), INT_TYPE_ID));
 }
 
 void TranslatorListener::exitFloatLiteral(
@@ -169,13 +174,13 @@ void TranslatorListener::exitFloatLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->FLOAT_LITERAL()->getText(), "double"));
+  valueStack.push(Value(ctx->FLOAT_LITERAL()->getText(), DOUBLE_TYPE_ID));
 }
 
 void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), "bool"));
+  valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), BOOL_TYPE_ID));
 }
 }  // namespace lexy2
