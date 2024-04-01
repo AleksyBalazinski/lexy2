@@ -35,6 +35,12 @@ def get_output(source_location, show=False):
         print(exe_stdout)
     return exe_stdout
 
+def indent_string(input_string, indent = "  "):
+    lines = input_string.split('\n')
+    indented_lines = [indent + line for line in lines]
+    indented_string = '\n'.join(indented_lines)
+    
+    return indented_string
 
 red_code = "\033[91m"
 green_code = "\033[92m"
@@ -49,6 +55,6 @@ for example_dir in os.listdir(examples_dir):
     if(out.strip() == expected.strip()):
         print(green_code + "OK" + reset_code)
     else:
-        print(red_code + "Failing" + reset_code, end=": ")
-        print("expected '" + expected + "'")
-        print("but got '" + out + "'")
+        print(red_code + "Failing" + reset_code)
+        print("expected\n" + indent_string(expected))
+        print("\nbut got\n" +  indent_string(out))
