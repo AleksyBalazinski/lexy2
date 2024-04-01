@@ -11,47 +11,24 @@ class SymbolTable {
   std::vector<ScopedTableType> tableStack;
 
  public:
-  SymbolTable() {
-    enterNewScope();  // global scope
-  }
+  SymbolTable();
 
-  std::pair<ScopedTableType::iterator, int> globalFind(const std::string& id) {
-    int scopeId = tableStack.size() - 1;
-    for (; scopeId >= 0; --scopeId) {
-      auto& scopedSymbolTable = tableStack[scopeId];
-      auto pos = scopedSymbolTable.find(id);
-      if (pos != scopedSymbolTable.end()) {
-        return std::make_pair(pos, scopeId);
-      }
-    }
-    return std::make_pair(tableStack[0].end(), scopeId);
-  }
+  std::pair<ScopedTableType::iterator, int> globalFind(const std::string& id);
 
-  ScopedTableType::iterator currentScopeFind(const std::string& id) {
-    return tableStack[tableStack.size() - 1].find(id);
-  }
+  ScopedTableType::iterator currentScopeFind(const std::string& id);
 
-  ScopedTableType::iterator end() { return tableStack[0].end(); }
+  ScopedTableType::iterator end();
 
-  void insertInCurrentScope(ScopedTableType::value_type&& node) {
-    tableStack[tableStack.size() - 1].insert(std::move(node));
-  }
+  void insertInCurrentScope(ScopedTableType::value_type&& node);
 
-  void enterNewScope() { tableStack.push_back(ScopedTableType()); }
+  void enterNewScope();
 
-  void leaveScope() { tableStack.pop_back(); }
+  void leaveScope();
 
-  std::string getCurrentScopeID() {
-    int id = tableStack.size() - 1;
-    return id == 0 ? "" : "." + std::to_string(id);
-  }
+  std::string getCurrentScopeID();
 
-  std::string getScopeID(int id) {
-    return id == 0 ? "" : "." + std::to_string(id);
-  }
+  std::string getScopeID(int id);
 
-  const ScopedTableType& getCurrentScope() const {
-    return tableStack[tableStack.size() - 1];
-  }
+  const ScopedTableType& getCurrentScope() const;
 };
 }  // namespace lexy2
