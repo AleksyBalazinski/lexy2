@@ -15,7 +15,7 @@ class ErrorHandler {
 
     std::string getErrStr() const {
       return std::to_string(line) + ":" + std::to_string(column) +
-             ": error: " + msg + "\n\n";
+             ": \033[91merror:\033[0m " + msg + "\n\n";
     }
   };
 

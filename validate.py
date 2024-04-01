@@ -36,9 +36,9 @@ def get_output(source_location, show=False):
     return exe_stdout
 
 
-red_code = "\033[91m" # ANSI escape code for red color
-green_code = "\033[92m" # ANSI escape code for green color
-reset_code = "\033[0m" # Reset ANSI escape code (to revert back to default color)
+red_code = "\033[91m"
+green_code = "\033[92m"
+reset_code = "\033[0m"
 
 for example_dir in os.listdir(examples_dir):
     cur_dir = os.path.join(examples_dir, example_dir)
@@ -49,4 +49,6 @@ for example_dir in os.listdir(examples_dir):
     if(out.strip() == expected.strip()):
         print(green_code + "OK" + reset_code)
     else:
-        print(red_code + "Failing" + reset_code)
+        print(red_code + "Failing" + reset_code, end=": ")
+        print("expected '" + expected + "'")
+        print("but got '" + out + "'")

@@ -12,8 +12,8 @@ WHITESPACE: [ \r\n\t]+ -> skip;
 expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
 
 assignmentExpr:
-	conditionalExpr													# fwd01
-	| IDENTIFIER ('=' | '+=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
+	conditionalExpr														# fwd01
+	| IDENTIFIER op = ('=' | '+=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
 
 conditionalExpr:
 	logicalOrExpr														# fwd05

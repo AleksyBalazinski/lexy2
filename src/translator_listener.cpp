@@ -36,10 +36,10 @@ void TranslatorListener::exitDeclStatement(
 
   auto identifier = ctx->IDENTIFIER()->getText();
   auto initializer = valueStack.top();
+  valueStack.pop();
   if (initializer.category == Value::Category::MEMORY) {
     initializer = load(initializer);
   }
-  valueStack.pop();
   if (symbolTable.find(identifier) != symbolTable.end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' already in use");
@@ -47,10 +47,7 @@ void TranslatorListener::exitDeclStatement(
     return;
   }
   if (ctx->TYPE_ID() != nullptr) {
-    valueStack.push(
-        castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]));
-    initializer = valueStack.top();
-    valueStack.pop();
+    initializer = castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]);
   }
   if (initializer.typeID == INT_TYPE_ID) {
     generator.declareI32(identifier);
@@ -65,6 +62,61 @@ void TranslatorListener::exitDeclStatement(
         identifier,
         Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
   }
+}
+
+void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  const auto identifier = ctx->IDENTIFIER()->getText();
+  const auto pos = symbolTable.find(identifier);
+  if (pos == symbolTable.end()) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Identifier '" + identifier + "' not declared");
+    inErrorMode = true;
+    return;
+  }
+  auto value = valueStack.top();
+  valueStack.pop();
+  if (value.category == Value::Category::MEMORY) {
+    value = load(value);
+  }
+  auto variable = pos->second;
+
+  const auto op = ctx->op->getText();
+  if (op == "+=") {
+    variable = load(variable);
+    value = addRegisters(variable, value);
+  }
+  if (op == "*=") {
+    variable = load(variable);
+    value = multiplyRegisters(variable, value);
+  }
+  if (op == "/=") {
+    variable = load(variable);
+    value = divideRegisters(variable, value);
+  }
+  if (op == "%=") {
+    variable = load(variable);
+    auto res = modRegisters(variable, value, ctx);
+    if (res.has_value()) {
+      value = *res;
+    } else {
+      return;
+    }
+  }
+  if (op == "=") {
+    if (variable.typeID != value.typeID) {
+      value = castRegister(value, variable.typeID);
+    }
+  }
+  if (variable.typeID == DOUBLE_TYPE_ID) {
+    generator.assignDouble(identifier, value.name);
+  }
+  if (variable.typeID == INT_TYPE_ID) {
+    generator.assignI32(identifier, value.name);
+  }
+  valueStack.push(value);
 }
 
 void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
@@ -111,6 +163,8 @@ void TranslatorListener::exitMultiplicative(
     const auto val = modRegisters(left, right, ctx);
     if (val.has_value()) {
       valueStack.push(*val);
+    } else {
+      return;
     }
   }
 }

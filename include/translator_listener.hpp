@@ -45,6 +45,7 @@ class TranslatorListener : public Lexy2BaseListener {
     typeIDs.insert(std::make_pair("double", DOUBLE_TYPE_ID));
     typeIDs.insert(std::make_pair("bool", BOOL_TYPE_ID));
   }
+
   void exitTranslationUnit(Lexy2Parser::TranslationUnitContext* ctx) override {}
 
   void exitStatement(Lexy2Parser::StatementContext* ctx) override;
@@ -59,7 +60,7 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitTernary(Lexy2Parser::TernaryContext* ctx) override {}
 
-  void exitAssign(Lexy2Parser::AssignContext* ctx) override {}
+  void exitAssign(Lexy2Parser::AssignContext* ctx) override;
 
   void exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) override {}
 
@@ -164,8 +165,10 @@ class TranslatorListener : public Lexy2BaseListener {
     throw std::exception();  // TODO: user defined types
   }
 
-  std::optional<Value> modRegisters(const Value& left, const Value& right,
-                                    antlr4::ParserRuleContext* ctx) {
+  std::optional<Value> modRegisters(
+      const Value& left, const Value& right,
+      antlr4::ParserRuleContext*
+          ctx) {  // TODO: check if conversion is valid before entering
     if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
       auto regStr = generator.remI32(left.name, right.name);
       return Value(regStr, INT_TYPE_ID);
@@ -173,7 +176,7 @@ class TranslatorListener : public Lexy2BaseListener {
       auto pos = utils::getLineCol(ctx);
       errorHandler.reportError(
           pos.first, pos.second,
-          "Operator % can only be applioed to int operands");
+          "Operator '%' can only be applied to int operands");
       inErrorMode = true;
       return {};
     }
