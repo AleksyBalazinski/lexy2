@@ -1,5 +1,6 @@
 #include "llvm_generator.hpp"
 
+namespace lexy2 {
 void LLVMGenerator::declareI32(const std::string& id) {
   text += "%" + id + " = alloca i32\n";
 }
@@ -142,3 +143,4 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
   code += "ret i32 0\n}\n";
   return code;
 }
+}  // namespace lexy2

@@ -55,3 +55,4 @@ libs/
 
 # generated code
 *.ll
+test.l2

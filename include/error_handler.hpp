@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+namespace lexy2 {
+
 class ErrorHandler {
   struct Error {
     Error(int line, int column, std::string msg)
@@ -43,3 +45,4 @@ class ErrorHandler {
 
   bool hasErrors() { return !errors.empty(); }
 };
+}  // namespace lexy2

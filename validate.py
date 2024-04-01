@@ -45,9 +45,8 @@ for example_dir in os.listdir(examples_dir):
     l2_files = find_files(cur_dir, "l2")
     out = get_output(l2_files[0])
     expected = get_expected(cur_dir)
-    print(example_dir)
+    print(example_dir, end=" ")
     if(out.strip() == expected.strip()):
         print(green_code + "OK" + reset_code)
     else:
         print(red_code + "Failing" + reset_code)
-    print()

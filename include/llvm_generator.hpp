@@ -3,6 +3,8 @@
 #include <string>
 #include <string_view>
 
+namespace lexy2 {
+
 class LLVMGenerator {
   std::string text;
   int reg = 1;
@@ -55,3 +57,4 @@ class LLVMGenerator {
     return declarePrintf + "\n";
   }
 };
+}  // namespace lexy2

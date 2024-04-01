@@ -1,5 +1,6 @@
 #include "translator_listener.hpp"
 
+namespace lexy2 {
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
   if (inErrorMode) {  // synchronize
     encounteredErrors = true;
@@ -40,7 +41,7 @@ void TranslatorListener::exitDeclStatement(
   }
   valueStack.pop();
   if (symbolTable.find(identifier) != symbolTable.end()) {
-    errorHandler.reportError(getLineCol(ctx),
+    errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' already in use");
     inErrorMode = true;
     return;
@@ -68,7 +69,7 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
   if (inErrorMode)
     return;
 
-  auto [left, right] = popTwo(valueStack);
+  auto [left, right] = utils::popTwo(valueStack);
   if (left.category == Value::Category::MEMORY) {
     left = load(left);
   }
@@ -89,7 +90,7 @@ void TranslatorListener::exitMultiplicative(
   if (inErrorMode)
     return;
 
-  auto [left, right] = popTwo(valueStack);
+  auto [left, right] = utils::popTwo(valueStack);
   if (left.category == Value::Category::MEMORY) {
     left = load(left);
   }
@@ -149,7 +150,7 @@ void TranslatorListener::exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) {
   if (loc != symbolTable.end()) {
     valueStack.push(loc->second);
   } else {
-    errorHandler.reportError(getLineCol(ctx),
+    errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + id + "' not declared");
     inErrorMode = true;
   }
@@ -177,3 +178,4 @@ void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
 
   valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), "bool"));
 }
+}  // namespace lexy2

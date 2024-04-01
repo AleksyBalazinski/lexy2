@@ -10,6 +10,8 @@
 #include "llvm_generator.hpp"
 #include "utils.hpp"
 
+namespace lexy2 {
+
 struct Value {
   enum class Category { REGISTER, MEMORY, CONSTANT };
   Value(std::string name, std::string type, Category category)
@@ -155,7 +157,7 @@ class TranslatorListener : public Lexy2BaseListener {
       auto regStr = generator.remI32(left.name, right.name);
       valueStack.push(Value(regStr, "int"));
     } else {
-      auto pos = getLineCol(ctx);
+      auto pos = utils::getLineCol(ctx);
       errorHandler.reportError(
           pos.first, pos.second,
           "Operator % can only be applioed to int operands");
@@ -239,3 +241,4 @@ class TranslatorListener : public Lexy2BaseListener {
     }
   }
 };
+}  // namespace lexy2

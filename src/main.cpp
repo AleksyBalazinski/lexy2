@@ -29,8 +29,8 @@ int main(int argc, const char* argv[]) {
   Lexy2Parser parser(&tokens);
 
   tree::ParseTree* tree = parser.translationUnit();
-  ErrorHandler errorHandler(sourceFilename);
-  TranslatorListener translationListener(errorHandler);
+  lexy2::ErrorHandler errorHandler(sourceFilename);
+  lexy2::TranslatorListener translationListener(errorHandler);
   tree::ParseTreeWalker::DEFAULT.walk(&translationListener, tree);
 
   if (errorHandler.hasErrors()) {
