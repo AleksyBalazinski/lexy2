@@ -51,4 +51,8 @@ libs/
 
 # VS Code
 .vscode/c_cpp_properties.json
-.vscode/settings.json 
+.vscode/settings.json
+
+# generated code
+*.ll
+test.l2

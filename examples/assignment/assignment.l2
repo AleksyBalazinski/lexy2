@@ -1,0 +1,17 @@
+let x = 3;
+let y = 5;
+let z = x + (y = x);
+__print z;
+__print y + (z += x);
+z = 3;
+__print z;
+__print z = 15;
+let a = 3;
+a *= 5;
+__print a;
+let b = 13.2;
+b /= 4;
+__print b;
+let c = 5;
+c %= 3;
+__print c;
