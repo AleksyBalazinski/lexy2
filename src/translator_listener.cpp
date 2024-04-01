@@ -40,7 +40,8 @@ void TranslatorListener::exitDeclStatement(
   if (initializer.category == Value::Category::MEMORY) {
     initializer = load(initializer);
   }
-  if (symbolTable.find(identifier) != symbolTable.end()) {
+  if (symbolTable.currentScopeFind(identifier) !=
+      symbolTable.getCurrentScope().end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' already in use");
     inErrorMode = true;
@@ -50,18 +51,30 @@ void TranslatorListener::exitDeclStatement(
     initializer = castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]);
   }
   if (initializer.typeID == INT_TYPE_ID) {
-    generator.declareI32(identifier);
-    generator.assignI32(identifier, initializer.name);
-    symbolTable.insert(std::make_pair(
+    generator.declareI32(identifier + symbolTable.getCurrentScopeID());
+    generator.assignI32(identifier + symbolTable.getCurrentScopeID(),
+                        initializer.name);
+    symbolTable.insertInCurrentScope(std::make_pair(
         identifier, Value(identifier, INT_TYPE_ID, Value::Category::MEMORY)));
   }
   if (initializer.typeID == DOUBLE_TYPE_ID) {
-    generator.declareDouble(identifier);
-    generator.assignDouble(identifier, initializer.name);
-    symbolTable.insert(std::make_pair(
+    generator.declareDouble(identifier + symbolTable.getCurrentScopeID());
+    generator.assignDouble(identifier + symbolTable.getCurrentScopeID(),
+                           initializer.name);
+    symbolTable.insertInCurrentScope(std::make_pair(
         identifier,
         Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
   }
+}
+
+void TranslatorListener::enterCompoundStatement(
+    Lexy2Parser::CompoundStatementContext* ctx) {
+  symbolTable.enterNewScope();
+}
+
+void TranslatorListener::exitCompoundStatement(
+    Lexy2Parser::CompoundStatementContext* ctx) {
+  symbolTable.leaveScope();
 }
 
 void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
@@ -69,8 +82,8 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     return;
 
   const auto identifier = ctx->IDENTIFIER()->getText();
-  const auto pos = symbolTable.find(identifier);
-  if (pos == symbolTable.end()) {
+  const auto [iter, scopeID] = symbolTable.globalFind(identifier);
+  if (iter == symbolTable.end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' not declared");
     inErrorMode = true;
@@ -81,7 +94,8 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
   }
-  auto variable = pos->second;
+  auto variable = iter->second;
+  variable.name += symbolTable.getScopeID(scopeID);
 
   const auto op = ctx->op->getText();
   if (op == "+=") {
@@ -114,7 +128,8 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     generator.assignDouble(identifier, value.name);
   }
   if (variable.typeID == INT_TYPE_ID) {
-    generator.assignI32(identifier, value.name);
+    generator.assignI32(identifier + symbolTable.getScopeID(scopeID),
+                        value.name);
   }
   valueStack.push(value);
 }
@@ -205,9 +220,11 @@ void TranslatorListener::exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) {
     return;
 
   const auto id = ctx->IDENTIFIER()->getText();
-  const auto loc = symbolTable.find(id);
+  const auto [loc, scopeID] = symbolTable.globalFind(id);
   if (loc != symbolTable.end()) {
-    valueStack.push(loc->second);
+    auto scopedIdentifier = loc->second;
+    scopedIdentifier.name += symbolTable.getScopeID(scopeID);
+    valueStack.push(scopedIdentifier);
   } else {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + id + "' not declared");

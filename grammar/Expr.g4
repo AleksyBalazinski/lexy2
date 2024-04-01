@@ -8,6 +8,7 @@ FLOAT_LITERAL:
 	[0-9]+ '.' [0-9]+ (('e' | 'E') ('+' | '-')? [0-9]+)?;
 BOOL_LITERAL: 'true' | 'false';
 WHITESPACE: [ \r\n\t]+ -> skip;
+COMMENT: '//' ~[\r\n]* -> skip;
 
 expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
 

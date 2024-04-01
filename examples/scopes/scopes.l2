@@ -1,0 +1,26 @@
+let x = 3;
+let y = 2;
+let z = 3.14;
+let w = 1;
+__print x; // 3
+__print y; // 2
+__print z; // 3.14
+__print w; // 1
+{
+    let x = 4;
+    x *= 10; 
+    __print x; // 40
+    __print y * 4; // 8
+    let w = 1.23;
+    {
+        let y = 100;
+        __print x * 100; // 40 * 100 = 4000
+        __print y; // 100
+        __print z; // 3.14
+        __print w; // 1.23
+    }
+}
+__print x; // 3
+__print y; // 2
+__print z; // 3.14
+__print w; // 1

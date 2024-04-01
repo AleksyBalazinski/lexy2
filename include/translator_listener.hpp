@@ -5,30 +5,18 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
+
 #include "Lexy2BaseListener.h"
 #include "error_handler.hpp"
 #include "llvm_generator.hpp"
+#include "symbol_table.hpp"
 #include "utils.hpp"
 
 namespace lexy2 {
 
-struct Value {
-  enum class Category { REGISTER, MEMORY, CONSTANT };
-  Value(std::string name, int typeID, Category category)
-      : name(std::move(name)), typeID(typeID), category(category) {}
-
-  Value(std::string name, int typeID)
-      : Value(name, typeID, Category::REGISTER) {}
-
-  std::string name;
-  int typeID;
-  Category category;
-};
-
 class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
-  std::unordered_map<std::string, Value> symbolTable;
+  SymbolTable symbolTable;
   LLVMGenerator generator;
   const int INT_TYPE_ID = 0;
   const int DOUBLE_TYPE_ID = 1;
@@ -55,6 +43,12 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitPrintIntrinsic(Lexy2Parser::PrintIntrinsicContext* ctx) override;
 
   void exitDeclStatement(Lexy2Parser::DeclStatementContext* ctx) override;
+
+  void enterCompoundStatement(
+      Lexy2Parser::CompoundStatementContext* ctx) override;
+
+  void exitCompoundStatement(
+      Lexy2Parser::CompoundStatementContext* ctx) override;
 
   void exitComma(Lexy2Parser::CommaContext* ctx) override {}
 
