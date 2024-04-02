@@ -69,6 +69,15 @@ void TranslatorListener::exitDeclStatement(
         identifier,
         Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
   }
+  if (initializer.typeID == BOOL_TYPE_ID) {
+    initializer.name = generator.castI1toI8(initializer.name);
+    generator.declareI8(identifier + symbolTable.getCurrentScopeID());
+
+    generator.assignI8(identifier + symbolTable.getCurrentScopeID(),
+                       initializer.name);
+    symbolTable.insertInCurrentScope(std::make_pair(
+        identifier, Value(identifier, BOOL_TYPE_ID, Value::Category::MEMORY)));
+  }
 }
 
 void TranslatorListener::enterCompoundStatement(
@@ -129,10 +138,15 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     }
   }
   if (variable.typeID == DOUBLE_TYPE_ID) {
-    generator.assignDouble(identifier, value.name);
+    generator.assignDouble(identifier + symbolTable.getScopeID(depth),
+                           value.name);
   }
   if (variable.typeID == INT_TYPE_ID) {
     generator.assignI32(identifier + symbolTable.getScopeID(depth), value.name);
+  }
+  if (variable.typeID == BOOL_TYPE_ID) {
+    value.name = generator.castI1toI8(value.name);
+    generator.assignI8(identifier + symbolTable.getScopeID(depth), value.name);
   }
   valueStack.push(value);
 }

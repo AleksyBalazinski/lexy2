@@ -9,6 +9,10 @@ void LLVMGenerator::declareDouble(const std::string& id) {
   text += "%" + id + " = alloca double\n";
 }
 
+void LLVMGenerator::declareI8(const std::string& id) {
+  text += "%" + id + " = alloca i8\n";
+}
+
 void LLVMGenerator::assignI32(const std::string& id, const std::string& value) {
   text += "store i32 " + value + ", i32* %" + id + "\n";
 }
@@ -16,6 +20,10 @@ void LLVMGenerator::assignI32(const std::string& id, const std::string& value) {
 void LLVMGenerator::assignDouble(const std::string& id,
                                  const std::string& value) {
   text += "store double " + value + ", double* %" + id + "\n";
+}
+
+void LLVMGenerator::assignI8(const std::string& id, const std::string& value) {
+  text += "store i8 " + value + ", i8* %" + id + "\n";
 }
 
 std::string LLVMGenerator::loadI32(const std::string& id) {
@@ -28,6 +36,13 @@ std::string LLVMGenerator::loadI32(const std::string& id) {
 std::string LLVMGenerator::loadDouble(const std::string& id) {
   auto regStr = getRegStr();
   text += regStr + " = load double, double* %" + id + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::loadI8(const std::string& id) {
+  auto regStr = getRegStr();
+  text += regStr + " = load i8, i8* %" + id + "\n";
   reg++;
   return regStr;
 }
@@ -121,6 +136,20 @@ std::string LLVMGenerator::castDoubleToI32(const std::string& id) {
 std::string LLVMGenerator::castBoolToI32(const std::string& id) {
   const auto regStr = getRegStr();
   text += regStr + " = zext i1 " + id + " to i32\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::truncateI8ToI1(const std::string& val) {
+  const auto regStr = getRegStr();
+  text += regStr + " = trunc i8 " + val + " to i1\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::castI1toI8(const std::string& val) {
+  const auto regStr = getRegStr();
+  text += regStr + " = zext i1 " + val + " to i8\n";
   reg++;
   return regStr;
 }

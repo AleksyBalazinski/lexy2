@@ -102,7 +102,7 @@ class TranslatorListener : public Lexy2BaseListener {
     if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
       return addWithRightCast(right, left);
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   Value subtractRegisters(const Value& left, const Value& right) {
@@ -120,7 +120,7 @@ class TranslatorListener : public Lexy2BaseListener {
     if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
       return subWithLeftCast(left, right);
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   Value multiplyRegisters(const Value& left, const Value& right) {
@@ -138,7 +138,7 @@ class TranslatorListener : public Lexy2BaseListener {
     if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
       return mulWithRightCast(right, left);
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   Value divideRegisters(const Value& left, const Value& right) {
@@ -156,7 +156,7 @@ class TranslatorListener : public Lexy2BaseListener {
     if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
       return divWithLeftCast(left, right);
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   std::optional<Value> modRegisters(
@@ -174,7 +174,7 @@ class TranslatorListener : public Lexy2BaseListener {
       inErrorMode = true;
       return {};
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   Value castRegister(const Value& value, int targetType) {
@@ -196,7 +196,7 @@ class TranslatorListener : public Lexy2BaseListener {
     if (value.typeID == BOOL_TYPE_ID) {
       if (targetType == INT_TYPE_ID) {}
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   Value negateRegister(const Value& value) {
@@ -208,7 +208,7 @@ class TranslatorListener : public Lexy2BaseListener {
       regStr = generator.subDouble("0.0", value.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
-    throw std::exception();  // TODO: user defined types
+    throw std::runtime_error("Not implemented");  // TODO: user defined types
   }
 
   Value plusRegister(const Value& value) { return value; }
@@ -306,7 +306,7 @@ class TranslatorListener : public Lexy2BaseListener {
       }
       return Value(regStr, BOOL_TYPE_ID);
     }
-    throw std::exception();
+    throw std::runtime_error("Not implemented");
   }
 
   Value load(const Value& val) {
@@ -316,7 +316,13 @@ class TranslatorListener : public Lexy2BaseListener {
     if (val.typeID == INT_TYPE_ID) {
       return Value(generator.loadI32(val.name), INT_TYPE_ID);
     }
-    throw std::exception();
+    if (val.typeID == BOOL_TYPE_ID) {
+      // auto castToI1 = generator.truncateI8ToI1(val.name);
+      // return Value(generator.loadI8(castToI1), BOOL_TYPE_ID);
+      auto loaded = generator.loadI8(val.name);
+      return Value(generator.truncateI8ToI1(loaded), BOOL_TYPE_ID);
+    }
+    throw std::runtime_error("Not implemented");
   }
 };
 }  // namespace lexy2

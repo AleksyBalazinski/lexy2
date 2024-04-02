@@ -14,12 +14,15 @@ class LLVMGenerator {
  public:
   void declareI32(const std::string& id);
   void declareDouble(const std::string& id);
+  void declareI8(const std::string& id);
 
   void assignI32(const std::string& id, const std::string& value);
   void assignDouble(const std::string& id, const std::string& value);
+  void assignI8(const std::string& id, const std::string& value);
 
   std::string loadI32(const std::string& id);
   std::string loadDouble(const std::string& id);
+  std::string loadI8(const std::string& id);
 
   std::string addI32(const std::string& val1, const std::string& val2);
   std::string addDouble(const std::string& val1, const std::string& val2);
@@ -38,6 +41,8 @@ class LLVMGenerator {
   std::string castI32ToDouble(const std::string& id);
   std::string castDoubleToI32(const std::string& id);
   std::string castBoolToI32(const std::string& id);
+  std::string truncateI8ToI1(const std::string& val);
+  std::string castI1toI8(const std::string& val);
 
   std::string cmpEqI32(const std::string& val1, const std::string& val2);
   std::string cmpEqDouble(const std::string& val1, const std::string& val2);
