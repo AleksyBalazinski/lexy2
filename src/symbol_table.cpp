@@ -1,27 +1,33 @@
 #include "symbol_table.hpp"
 
 namespace lexy2 {
+inline int SymbolTable::getCurrentDepth() const {
+  return tableStack.size() - 1;
+}
+
 SymbolTable::SymbolTable() {
   enterNewScope();  // global scope
+  scopeIDBuilder.reserve(5);
+  scopeIDBuilder.push_back(0);
 }
 
 using ScopedTableType = std::unordered_map<std::string, Value>;
 
 std::pair<ScopedTableType::iterator, int> SymbolTable::globalFind(
     const std::string& id) {
-  int scopeId = tableStack.size() - 1;
-  for (; scopeId >= 0; --scopeId) {
-    auto& scopedSymbolTable = tableStack[scopeId];
+  int depth = getCurrentDepth();
+  for (; depth >= 0; --depth) {
+    auto& scopedSymbolTable = tableStack[depth];
     auto pos = scopedSymbolTable.find(id);
     if (pos != scopedSymbolTable.end()) {
-      return std::make_pair(pos, scopeId);
+      return std::make_pair(pos, depth);
     }
   }
-  return std::make_pair(tableStack[0].end(), scopeId);
+  return std::make_pair(tableStack[0].end(), depth);
 }
 
 ScopedTableType::iterator SymbolTable::currentScopeFind(const std::string& id) {
-  return tableStack[tableStack.size() - 1].find(id);
+  return tableStack[getCurrentDepth()].find(id);
 }
 
 ScopedTableType::iterator SymbolTable::end() {
@@ -29,28 +35,50 @@ ScopedTableType::iterator SymbolTable::end() {
 }
 
 void SymbolTable::insertInCurrentScope(ScopedTableType::value_type&& node) {
-  tableStack[tableStack.size() - 1].insert(std::move(node));
+  tableStack[getCurrentDepth()].insert(std::move(node));
 }
 
 void SymbolTable::enterNewScope() {
   tableStack.push_back(ScopedTableType());
+
+  int depth = getCurrentDepth();
+  if (depth != 0) {
+    if (scopeIDBuilder.size() < depth + 1) {
+      scopeIDBuilder.push_back(1);
+    } else {
+      ++scopeIDBuilder[depth];
+    }
+  }
 }
 
 void SymbolTable::leaveScope() {
   tableStack.pop_back();
+
+  int depth = getCurrentDepth();
+  if (scopeIDBuilder.size() > depth + 2) {
+    scopeIDBuilder[depth + 2] = 0;
+  }
 }
 
 std::string SymbolTable::getCurrentScopeID() {
-  int id = tableStack.size() - 1;
-  return id == 0 ? "" : "." + std::to_string(id);
+  int depth = getCurrentDepth();
+  return getScopeID(depth);
 }
 
-std::string SymbolTable::getScopeID(int id) {
-  return id == 0 ? "" : "." + std::to_string(id);
+std::string SymbolTable::getScopeID(int depth) {
+  if (depth == 0) {
+    return "";
+  }
+  std::string scopeID;
+  for (int i = 1; i <= depth; i++) {
+    int mark = scopeIDBuilder[i];
+    scopeID.append("." + std::to_string(mark));
+  }
+  return scopeID;
 }
 
 const ScopedTableType& SymbolTable::getCurrentScope() const {
-  return tableStack[tableStack.size() - 1];
+  return tableStack[getCurrentDepth()];
 }
 
 }  // namespace lexy2

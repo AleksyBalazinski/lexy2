@@ -9,6 +9,9 @@ namespace lexy2 {
 class SymbolTable {
   using ScopedTableType = std::unordered_map<std::string, Value>;
   std::vector<ScopedTableType> tableStack;
+  std::vector<int> scopeIDBuilder;
+
+  int getCurrentDepth() const;
 
  public:
   SymbolTable();
