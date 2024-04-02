@@ -27,6 +27,10 @@ void TranslatorListener::exitPrintIntrinsic(
   if (value.typeID == DOUBLE_TYPE_ID) {
     generator.printDouble(value.name);
   }
+  if (value.typeID == BOOL_TYPE_ID) {
+    const auto casted = generator.castBoolToI32(value.name);
+    generator.printI32(casted);
+  }
 }
 
 void TranslatorListener::exitDeclStatement(
@@ -82,7 +86,7 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     return;
 
   const auto identifier = ctx->IDENTIFIER()->getText();
-  const auto [iter, scopeID] = symbolTable.globalFind(identifier);
+  const auto [iter, depth] = symbolTable.globalFind(identifier);
   if (iter == symbolTable.end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' not declared");
@@ -95,7 +99,7 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     value = load(value);
   }
   auto variable = iter->second;
-  variable.name += symbolTable.getScopeID(scopeID);
+  variable.name += symbolTable.getScopeID(depth);
 
   const auto op = ctx->op->getText();
   if (op == "+=") {
@@ -128,10 +132,55 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     generator.assignDouble(identifier, value.name);
   }
   if (variable.typeID == INT_TYPE_ID) {
-    generator.assignI32(identifier + symbolTable.getScopeID(scopeID),
-                        value.name);
+    generator.assignI32(identifier + symbolTable.getScopeID(depth), value.name);
   }
   valueStack.push(value);
+}
+
+void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.category == Value::Category::MEMORY) {
+    left = load(left);
+  }
+  if (right.category == Value::Category::MEMORY) {
+    right = load(right);
+  }
+  auto op = ctx->op->getText();
+  if (op == "==") {
+    valueStack.push(compareRegisters(left, right, Relation::EQ));
+  }
+  if (op == "!=") {
+    valueStack.push(compareRegisters(left, right, Relation::NEQ));
+  }
+}
+
+void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.category == Value::Category::MEMORY) {
+    left = load(left);
+  }
+  if (right.category == Value::Category::MEMORY) {
+    right = load(right);
+  }
+  auto op = ctx->op->getText();
+  if (op == "<") {
+    valueStack.push(compareRegisters(left, right, Relation::LT));
+  }
+  if (op == ">") {
+    valueStack.push(compareRegisters(left, right, Relation::GT));
+  }
+  if (op == "<=") {
+    valueStack.push(compareRegisters(left, right, Relation::LE));
+  }
+  if (op == ">=") {
+    valueStack.push(compareRegisters(left, right, Relation::GE));
+  }
 }
 
 void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
@@ -220,10 +269,10 @@ void TranslatorListener::exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) {
     return;
 
   const auto id = ctx->IDENTIFIER()->getText();
-  const auto [loc, scopeID] = symbolTable.globalFind(id);
+  const auto [loc, depth] = symbolTable.globalFind(id);
   if (loc != symbolTable.end()) {
     auto scopedIdentifier = loc->second;
-    scopedIdentifier.name += symbolTable.getScopeID(scopeID);
+    scopedIdentifier.name += symbolTable.getScopeID(depth);
     valueStack.push(scopedIdentifier);
   } else {
     errorHandler.reportError(utils::getLineCol(ctx),

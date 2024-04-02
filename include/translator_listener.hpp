@@ -60,9 +60,9 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) override {}
 
-  void exitEquality(Lexy2Parser::EqualityContext* ctx) override {}
+  void exitEquality(Lexy2Parser::EqualityContext* ctx) override;
 
-  void exitRelation(Lexy2Parser::RelationContext* ctx) override {}
+  void exitRelation(Lexy2Parser::RelationContext* ctx) override;
 
   void exitAdditive(Lexy2Parser::AdditiveContext* ctx) override;
 
@@ -193,6 +193,9 @@ class TranslatorListener : public Lexy2BaseListener {
         return Value(regStr, INT_TYPE_ID);
       }
     }
+    if (value.typeID == BOOL_TYPE_ID) {
+      if (targetType == INT_TYPE_ID) {}
+    }
     throw std::exception();  // TODO: user defined types
   }
 
@@ -244,6 +247,66 @@ class TranslatorListener : public Lexy2BaseListener {
     auto tempRegStr = generator.castI32ToDouble(left.name);
     auto regStr = generator.subDouble(tempRegStr, right.name);
     return Value(regStr, DOUBLE_TYPE_ID);
+  }
+
+  Value compareRegisters(Value left, Value right, Relation rel) {
+    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
+      left.name = generator.castI32ToDouble(left.name);
+      left.typeID = DOUBLE_TYPE_ID;
+    }
+    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
+      right.name = generator.castI32ToDouble(right.name);
+      right.typeID = DOUBLE_TYPE_ID;
+    }
+    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
+      std::string regStr;
+      switch (rel) {
+        case Relation::EQ:
+          regStr = generator.cmpEqI32(left.name, right.name);
+          break;
+        case Relation::NEQ:
+          regStr = generator.cmpNeqI32(left.name, right.name);
+          break;
+        case Relation::GE:
+          regStr = generator.cmpGeqI32(left.name, right.name);
+          break;
+        case Relation::GT:
+          regStr = generator.cmpGreaterThanI32(left.name, right.name);
+          break;
+        case Relation::LE:
+          regStr = generator.cmpLeqI32(left.name, right.name);
+          break;
+        case Relation::LT:
+          regStr = generator.cmpLessThanI32(left.name, right.name);
+          break;
+      }
+      return Value(regStr, BOOL_TYPE_ID);
+    }
+    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
+      std::string regStr;
+      switch (rel) {
+        case Relation::EQ:
+          regStr = generator.cmpEqDouble(left.name, right.name);
+          break;
+        case Relation::NEQ:
+          regStr = generator.cmpNeqDouble(left.name, right.name);
+          break;
+        case Relation::GE:
+          regStr = generator.cmpGeqDouble(left.name, right.name);
+          break;
+        case Relation::GT:
+          regStr = generator.cmpGreaterThanDouble(left.name, right.name);
+          break;
+        case Relation::LE:
+          regStr = generator.cmpLeqDouble(left.name, right.name);
+          break;
+        case Relation::LT:
+          regStr = generator.cmpLessThanDouble(left.name, right.name);
+          break;
+      }
+      return Value(regStr, BOOL_TYPE_ID);
+    }
+    throw std::exception();
   }
 
   Value load(const Value& val) {

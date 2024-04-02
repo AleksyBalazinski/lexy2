@@ -30,7 +30,7 @@ class SymbolTable {
 
   std::string getCurrentScopeID();
 
-  std::string getScopeID(int id);
+  std::string getScopeID(int depth);
 
   const ScopedTableType& getCurrentScope() const;
 };

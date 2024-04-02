@@ -118,6 +118,109 @@ std::string LLVMGenerator::castDoubleToI32(const std::string& id) {
   return regStr;
 }
 
+std::string LLVMGenerator::castBoolToI32(const std::string& id) {
+  const auto regStr = getRegStr();
+  text += regStr + " = zext i1 " + id + " to i32\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpEqI32(const std::string& val1,
+                                    const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = icmp eq i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpEqDouble(const std::string& val1,
+                                       const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = fcmp oeq double " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpNeqI32(const std::string& val1,
+                                     const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = icmp ne i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpNeqDouble(const std::string& val1,
+                                        const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = fcmp one double " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpGeqI32(const std::string& val1,
+                                     const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = icmp sge i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpGeqDouble(const std::string& val1,
+                                        const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = fcmp oge double " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpGreaterThanI32(const std::string& val1,
+                                             const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = icmp sgt i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpGreaterThanDouble(const std::string& val1,
+                                                const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = fcmp ogt double " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpLeqI32(const std::string& val1,
+                                     const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = icmp sle i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpLeqDouble(const std::string& val1,
+                                        const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = fcmp ole double " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpLessThanI32(const std::string& val1,
+                                          const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = icmp slt i32 " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::cmpLessThanDouble(const std::string& val1,
+                                             const std::string& val2) {
+  const auto regStr = getRegStr();
+  text += regStr + " = fcmp olt double " + val1 + ", " + val2 + "\n";
+  reg++;
+  return regStr;
+}
+
 void LLVMGenerator::printI32(const std::string& id) {
   text += "call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef " +
           id + ")\n";

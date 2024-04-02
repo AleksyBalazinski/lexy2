@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <string_view>
+#include "operations.hpp"
 
 namespace lexy2 {
 
@@ -35,6 +37,28 @@ class LLVMGenerator {
 
   std::string castI32ToDouble(const std::string& id);
   std::string castDoubleToI32(const std::string& id);
+  std::string castBoolToI32(const std::string& id);
+
+  std::string cmpEqI32(const std::string& val1, const std::string& val2);
+  std::string cmpEqDouble(const std::string& val1, const std::string& val2);
+
+  std::string cmpNeqI32(const std::string& val1, const std::string& val2);
+  std::string cmpNeqDouble(const std::string& val1, const std::string& val2);
+
+  std::string cmpLessThanI32(const std::string& val1, const std::string& val2);
+  std::string cmpLessThanDouble(const std::string& val1,
+                                const std::string& val2);
+
+  std::string cmpLeqI32(const std::string& val1, const std::string& val2);
+  std::string cmpLeqDouble(const std::string& val1, const std::string& val2);
+
+  std::string cmpGreaterThanI32(const std::string& val1,
+                                const std::string& val2);
+  std::string cmpGreaterThanDouble(const std::string& val1,
+                                   const std::string& val2);
+
+  std::string cmpGeqI32(const std::string& val1, const std::string& val2);
+  std::string cmpGeqDouble(const std::string& val1, const std::string& val2);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);
