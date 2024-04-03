@@ -89,11 +89,15 @@ class TranslatorListener : public Lexy2BaseListener {
  private:
   Value addRegisters(const Value& left, const Value& right) {
     if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.addI32(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::ADD,
+                                          LLVMGenerator::Type::I32, left.name,
+                                          right.name);
       return Value(regStr, INT_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.addDouble(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::ADD,
+                                          LLVMGenerator::Type::DOUBLE,
+                                          left.name, right.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
@@ -107,11 +111,15 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value subtractRegisters(const Value& left, const Value& right) {
     if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.subI32(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
+                                          LLVMGenerator::Type::I32, left.name,
+                                          right.name);
       return Value(regStr, INT_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.subDouble(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
+                                          LLVMGenerator::Type::DOUBLE,
+                                          left.name, right.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
@@ -125,11 +133,15 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value multiplyRegisters(const Value& left, const Value& right) {
     if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.mulI32(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::MUL,
+                                          LLVMGenerator::Type::I32, left.name,
+                                          right.name);
       return Value(regStr, INT_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.mulDouble(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::MUL,
+                                          LLVMGenerator::Type::DOUBLE,
+                                          left.name, right.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
@@ -143,11 +155,15 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value divideRegisters(const Value& left, const Value& right) {
     if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.divI32(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
+                                          LLVMGenerator::Type::I32, left.name,
+                                          right.name);
       return Value(regStr, INT_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.divDouble(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
+                                          LLVMGenerator::Type::DOUBLE,
+                                          left.name, right.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
     if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
@@ -164,7 +180,9 @@ class TranslatorListener : public Lexy2BaseListener {
       antlr4::ParserRuleContext*
           ctx) {  // TODO: check if conversion is valid before entering
     if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.remI32(left.name, right.name);
+      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SREM,
+                                          LLVMGenerator::Type::I32, left.name,
+                                          right.name);
       return Value(regStr, INT_TYPE_ID);
     } else {
       auto pos = utils::getLineCol(ctx);
@@ -202,10 +220,13 @@ class TranslatorListener : public Lexy2BaseListener {
   Value negateRegister(const Value& value) {
     std::string regStr;
     if (value.typeID == INT_TYPE_ID) {
-      regStr = generator.subI32("0", value.name);
+      regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
+                                     LLVMGenerator::Type::I32, "0", value.name);
       return Value(regStr, INT_TYPE_ID);
     } else if (value.typeID == DOUBLE_TYPE_ID) {
-      regStr = generator.subDouble("0.0", value.name);
+      regStr =
+          generator.createBinOp(LLVMGenerator::BinOpName::SUB,
+                                LLVMGenerator::Type::DOUBLE, "0.0", value.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
     throw std::runtime_error("Not implemented");  // TODO: user defined types
@@ -215,37 +236,49 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value mulWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.mulDouble(left.name, tempRegStr);
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::MUL,
+                                        LLVMGenerator::Type::DOUBLE, left.name,
+                                        tempRegStr);
     return Value(regStr, DOUBLE_TYPE_ID);
   }
 
   Value divWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.divDouble(left.name, tempRegStr);
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
+                                        LLVMGenerator::Type::DOUBLE, left.name,
+                                        tempRegStr);
     return Value(regStr, DOUBLE_TYPE_ID);
   }
 
   Value divWithLeftCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(left.name);
-    auto regStr = generator.divDouble(tempRegStr, right.name);
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
+                                        LLVMGenerator::Type::DOUBLE, tempRegStr,
+                                        right.name);
     return Value(regStr, DOUBLE_TYPE_ID);
   }
 
   Value addWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.addDouble(left.name, tempRegStr);
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::ADD,
+                                        LLVMGenerator::Type::DOUBLE, left.name,
+                                        tempRegStr);
     return Value(regStr, DOUBLE_TYPE_ID);
   }
 
   Value subWithRightCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.subDouble(left.name, tempRegStr);
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
+                                        LLVMGenerator::Type::DOUBLE, left.name,
+                                        tempRegStr);
     return Value(regStr, DOUBLE_TYPE_ID);
   }
 
   Value subWithLeftCast(const Value& left, const Value& right) {
     auto tempRegStr = generator.castI32ToDouble(left.name);
-    auto regStr = generator.subDouble(tempRegStr, right.name);
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
+                                        LLVMGenerator::Type::DOUBLE, tempRegStr,
+                                        right.name);
     return Value(regStr, DOUBLE_TYPE_ID);
   }
 
@@ -262,22 +295,34 @@ class TranslatorListener : public Lexy2BaseListener {
       std::string regStr;
       switch (rel) {
         case Relation::EQ:
-          regStr = generator.cmpEqI32(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::I32,
+                                       LLVMGenerator::RelName::EQ, left.name,
+                                       right.name);
           break;
         case Relation::NEQ:
-          regStr = generator.cmpNeqI32(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::I32,
+                                       LLVMGenerator::RelName::NE, left.name,
+                                       right.name);
           break;
         case Relation::GE:
-          regStr = generator.cmpGeqI32(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::I32,
+                                       LLVMGenerator::RelName::GE, left.name,
+                                       right.name);
           break;
         case Relation::GT:
-          regStr = generator.cmpGreaterThanI32(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::I32,
+                                       LLVMGenerator::RelName::GT, left.name,
+                                       right.name);
           break;
         case Relation::LE:
-          regStr = generator.cmpLeqI32(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::I32,
+                                       LLVMGenerator::RelName::LE, left.name,
+                                       right.name);
           break;
         case Relation::LT:
-          regStr = generator.cmpLessThanI32(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::I32,
+                                       LLVMGenerator::RelName::LT, left.name,
+                                       right.name);
           break;
       }
       return Value(regStr, BOOL_TYPE_ID);
@@ -286,22 +331,34 @@ class TranslatorListener : public Lexy2BaseListener {
       std::string regStr;
       switch (rel) {
         case Relation::EQ:
-          regStr = generator.cmpEqDouble(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
+                                       LLVMGenerator::RelName::EQ, left.name,
+                                       right.name);
           break;
         case Relation::NEQ:
-          regStr = generator.cmpNeqDouble(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
+                                       LLVMGenerator::RelName::NE, left.name,
+                                       right.name);
           break;
         case Relation::GE:
-          regStr = generator.cmpGeqDouble(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
+                                       LLVMGenerator::RelName::GE, left.name,
+                                       right.name);
           break;
         case Relation::GT:
-          regStr = generator.cmpGreaterThanDouble(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
+                                       LLVMGenerator::RelName::GT, left.name,
+                                       right.name);
           break;
         case Relation::LE:
-          regStr = generator.cmpLeqDouble(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
+                                       LLVMGenerator::RelName::LE, left.name,
+                                       right.name);
           break;
         case Relation::LT:
-          regStr = generator.cmpLessThanDouble(left.name, right.name);
+          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
+                                       LLVMGenerator::RelName::LT, left.name,
+                                       right.name);
           break;
       }
       return Value(regStr, BOOL_TYPE_ID);
@@ -311,15 +368,15 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value load(const Value& val) {
     if (val.typeID == DOUBLE_TYPE_ID) {
-      return Value(generator.loadDouble(val.name), DOUBLE_TYPE_ID);
+      return Value(generator.createLoad(LLVMGenerator::Type::DOUBLE, val.name),
+                   DOUBLE_TYPE_ID);
     }
     if (val.typeID == INT_TYPE_ID) {
-      return Value(generator.loadI32(val.name), INT_TYPE_ID);
+      return Value(generator.createLoad(LLVMGenerator::Type::I32, val.name),
+                   INT_TYPE_ID);
     }
     if (val.typeID == BOOL_TYPE_ID) {
-      // auto castToI1 = generator.truncateI8ToI1(val.name);
-      // return Value(generator.loadI8(castToI1), BOOL_TYPE_ID);
-      auto loaded = generator.loadI8(val.name);
+      auto loaded = generator.createLoad(LLVMGenerator::Type::I8, val.name);
       return Value(generator.truncateI8ToI1(loaded), BOOL_TYPE_ID);
     }
     throw std::runtime_error("Not implemented");

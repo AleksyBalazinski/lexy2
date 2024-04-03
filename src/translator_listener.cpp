@@ -54,27 +54,27 @@ void TranslatorListener::exitDeclStatement(
   if (ctx->TYPE_ID() != nullptr) {
     initializer = castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]);
   }
+  const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
   if (initializer.typeID == INT_TYPE_ID) {
-    generator.declareI32(identifier + symbolTable.getCurrentScopeID());
-    generator.assignI32(identifier + symbolTable.getCurrentScopeID(),
-                        initializer.name);
+    generator.createDeclaration(LLVMGenerator::Type::I32, scopedIdentifier);
+    generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
+                               initializer.name);
     symbolTable.insertInCurrentScope(std::make_pair(
         identifier, Value(identifier, INT_TYPE_ID, Value::Category::MEMORY)));
   }
   if (initializer.typeID == DOUBLE_TYPE_ID) {
-    generator.declareDouble(identifier + symbolTable.getCurrentScopeID());
-    generator.assignDouble(identifier + symbolTable.getCurrentScopeID(),
-                           initializer.name);
+    generator.createDeclaration(LLVMGenerator::Type::DOUBLE, scopedIdentifier);
+    generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
+                               initializer.name);
     symbolTable.insertInCurrentScope(std::make_pair(
         identifier,
         Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
   }
   if (initializer.typeID == BOOL_TYPE_ID) {
     initializer.name = generator.castI1toI8(initializer.name);
-    generator.declareI8(identifier + symbolTable.getCurrentScopeID());
-
-    generator.assignI8(identifier + symbolTable.getCurrentScopeID(),
-                       initializer.name);
+    generator.createDeclaration(LLVMGenerator::Type::I8, scopedIdentifier);
+    generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
+                               initializer.name);
     symbolTable.insertInCurrentScope(std::make_pair(
         identifier, Value(identifier, BOOL_TYPE_ID, Value::Category::MEMORY)));
   }
@@ -137,16 +137,19 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
       value = castRegister(value, variable.typeID);
     }
   }
+  const auto scopedIdentifier = identifier + symbolTable.getScopeID(depth);
   if (variable.typeID == DOUBLE_TYPE_ID) {
-    generator.assignDouble(identifier + symbolTable.getScopeID(depth),
-                           value.name);
+    generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
+                               value.name);
   }
   if (variable.typeID == INT_TYPE_ID) {
-    generator.assignI32(identifier + symbolTable.getScopeID(depth), value.name);
+    generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
+                               value.name);
   }
   if (variable.typeID == BOOL_TYPE_ID) {
     value.name = generator.castI1toI8(value.name);
-    generator.assignI8(identifier + symbolTable.getScopeID(depth), value.name);
+    generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
+                               value.name);
   }
   valueStack.push(value);
 }

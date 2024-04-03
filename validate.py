@@ -26,7 +26,7 @@ def get_output(source_location, show=False):
         
     clang_process = subprocess.run(clang + " " + source_location[:-3] + ".ll", stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     clang_stderr = clang_process.stderr
-    if(len(clang_stderr and show) > 0):
+    if(len(clang_stderr) > 0 and show):
         print(clang_stderr)
         
     exe_process = subprocess.run(exe, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

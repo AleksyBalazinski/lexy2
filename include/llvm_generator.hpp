@@ -1,42 +1,68 @@
 #pragma once
 
-#include <functional>
+#include <optional>
+#include <stdexcept>
 #include <string>
-#include <string_view>
 #include "operations.hpp"
 
 namespace lexy2 {
 
 class LLVMGenerator {
+ public:
+  enum class Type { I32, I8, DOUBLE };
+  enum class BinOpName { SUB, ADD, DIV, MUL, SREM, CMP };
+  enum class RelName { EQ, NE, GE, LE, GT, LT };
+
+ private:
   std::string text;
   int reg = 1;
 
+  static std::string getTypeString(Type type);
+  static std::string getOpPrefix(Type type);
+  static std::string getRelPrefix(Type type);
+  static std::string getOperationString(BinOpName op);
+  static std::string getRelName(RelName relName);
+  static std::string getRelNamePrefix(RelName relName, Type type);
+  static std::string getIndent() { return "  "; }
+
  public:
-  void declareI32(const std::string& id);
-  void declareDouble(const std::string& id);
-  void declareI8(const std::string& id);
+  std::string createBinOp(BinOpName op, Type type, const std::string& arg1,
+                          const std::string& arg2) {
+    const auto regStr = getRegStr();
+    text += getIndent() + regStr + " = " + getOpPrefix(type) +
+            getOperationString(op) + " " + getTypeString(type) + " " + arg1 +
+            ", " + arg2 + "\n";
+    reg++;
+    return regStr;
+  }
 
-  void assignI32(const std::string& id, const std::string& value);
-  void assignDouble(const std::string& id, const std::string& value);
-  void assignI8(const std::string& id, const std::string& value);
+  std::string createRel(Type type, RelName relName, const std::string& arg1,
+                        const std::string& arg2) {
+    const auto regStr = getRegStr();
+    text += getIndent() + regStr + " = " + getRelPrefix(type) + "cmp" + " " +
+            getRelNamePrefix(relName, type) + getRelName(relName) + " " +
+            getTypeString(type) + " " + arg1 + ", " + arg2 + "\n";
+    reg++;
+    return regStr;
+  }
 
-  std::string loadI32(const std::string& id);
-  std::string loadDouble(const std::string& id);
-  std::string loadI8(const std::string& id);
+  void createAssignment(Type type, const std::string& identifier,
+                        const std::string& value) {
+    text += getIndent() + "store " + getTypeString(type) + " " + value + ", " +
+            getTypeString(type) + "* %" + identifier + "\n";
+  }
 
-  std::string addI32(const std::string& val1, const std::string& val2);
-  std::string addDouble(const std::string& val1, const std::string& val2);
+  void createDeclaration(Type type, const std::string& arg) {
+    text += getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
+  }
 
-  std::string subI32(const std::string& val1, const std::string& val2);
-  std::string subDouble(const std::string& val1, const std::string& val2);
-
-  std::string mulI32(const std::string& val1, const std::string& val2);
-  std::string mulDouble(const std::string& val1, const std::string& val2);
-
-  std::string divI32(const std::string& val1, const std::string& val2);
-  std::string divDouble(const std::string& val1, const std::string& val2);
-
-  std::string remI32(const std::string& val1, const std::string& val2);
+  std::string createLoad(Type type, const std::string& id) {
+    const auto regStr = getRegStr();
+    text += getIndent() + regStr + " = load " + getTypeString(type) + ", " +
+            getTypeString(type) + "* %" + id + "\n";
+    reg++;
+    return regStr;
+  }
 
   std::string castI32ToDouble(const std::string& id);
   std::string castDoubleToI32(const std::string& id);
@@ -44,34 +70,13 @@ class LLVMGenerator {
   std::string truncateI8ToI1(const std::string& val);
   std::string castI1toI8(const std::string& val);
 
-  std::string cmpEqI32(const std::string& val1, const std::string& val2);
-  std::string cmpEqDouble(const std::string& val1, const std::string& val2);
-
-  std::string cmpNeqI32(const std::string& val1, const std::string& val2);
-  std::string cmpNeqDouble(const std::string& val1, const std::string& val2);
-
-  std::string cmpLessThanI32(const std::string& val1, const std::string& val2);
-  std::string cmpLessThanDouble(const std::string& val1,
-                                const std::string& val2);
-
-  std::string cmpLeqI32(const std::string& val1, const std::string& val2);
-  std::string cmpLeqDouble(const std::string& val1, const std::string& val2);
-
-  std::string cmpGreaterThanI32(const std::string& val1,
-                                const std::string& val2);
-  std::string cmpGreaterThanDouble(const std::string& val1,
-                                   const std::string& val2);
-
-  std::string cmpGeqI32(const std::string& val1, const std::string& val2);
-  std::string cmpGeqDouble(const std::string& val1, const std::string& val2);
-
   void printI32(const std::string& id);
   void printDouble(const std::string& id);
 
   std::string emitCode(const std::string& source_filename);
 
  private:
-  std::string getRegStr() { return "%" + std::to_string(reg); }
+  std::string getRegStr() const { return "%" + std::to_string(reg); }
 
   std::string getPrintfFormatStrings() {
     std::string formatInt =
