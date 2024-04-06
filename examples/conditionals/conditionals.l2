@@ -1,0 +1,25 @@
+let a = 0;
+if a == 1 {
+    __print 0;
+} else {
+    __print 11;
+    let b = 10;
+    if b < 100 {
+        __print 100;
+        b = 2;
+        let b = -100;
+        if b + 1 > 0 {
+            __print 99;
+        } else {
+            __print -99;
+            if b == -1 * 100 {
+                __print 1;
+            } else {
+                __print 0;
+            }
+        }
+        __print 69;
+    }
+    __print b;
+}
+__print 13;

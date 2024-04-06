@@ -15,6 +15,9 @@ class LLVMGenerator {
  private:
   std::string text;
   int reg = 1;
+  int ifEndNumber = 0;
+  int ifElseNumber = 0;
+  int ifThenNumber = 0;
 
   static std::string getTypeString(Type type);
   static std::string getOpPrefix(Type type);
@@ -61,6 +64,36 @@ class LLVMGenerator {
             getTypeString(type) + "* %" + id + "\n";
     reg++;
     return regStr;
+  }
+
+  void createBranch(const std::string& cond, const std::string& ifTrue,
+                    const std::string& ifFalse) {
+    text += getIndent() + "br i1 " + cond + ", label %" + ifTrue + ", label %" +
+            ifFalse + "\n";
+  }
+
+  void createBranch(const std::string& dest) {
+    text += getIndent() + "br label %" + dest + "\n";
+  }
+
+  void createLabel(const std::string& label) { text += label + ":\n"; }
+
+  std::string getIfThenLabel() {
+    auto suffix = ifThenNumber == 0 ? "" : std::to_string(ifThenNumber);
+    ++ifThenNumber;
+    return "if.then" + suffix;
+  }
+
+  std::string getIfEndLabel() {
+    auto suffix = ifEndNumber == 0 ? "" : std::to_string(ifEndNumber);
+    ++ifEndNumber;
+    return "if.end" + suffix;
+  }
+
+  std::string getIfElseLabel() {
+    auto suffix = ifElseNumber == 0 ? "" : std::to_string(ifElseNumber);
+    ++ifElseNumber;
+    return "if.else" + suffix;
   }
 
   std::string castI32ToDouble(const std::string& id);

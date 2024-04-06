@@ -17,12 +17,13 @@ namespace lexy2 {
 
 class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
+  std::stack<std::string> basicBlockStack;
+  std::stack<std::string> returnPointsStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
-  const int INT_TYPE_ID =
-      0;  // TODO this should be replaced by casts from PrimitiveType enum
-  const int DOUBLE_TYPE_ID = 1;
-  const int BOOL_TYPE_ID = 2;
+  const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
+  const int DOUBLE_TYPE_ID = static_cast<int>(PrimitiveType::DOUBLE);
+  const int BOOL_TYPE_ID = static_cast<int>(PrimitiveType::BOOL);
   std::unordered_map<std::string, int> typeIDs;
   TypeManager typeManager;
 
@@ -49,9 +50,22 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void enterCompoundStatement(
       Lexy2Parser::CompoundStatementContext* ctx) override;
-
   void exitCompoundStatement(
       Lexy2Parser::CompoundStatementContext* ctx) override;
+
+  void exitCondition(Lexy2Parser::ConditionContext* ctx) override;
+
+  void enterThenPart(Lexy2Parser::ThenPartContext* ctx) override;
+  void exitThenPart(Lexy2Parser::ThenPartContext* ctx) override;
+
+  void enterElsePart(Lexy2Parser::ElsePartContext* ctx) override;
+  void exitElsePart(Lexy2Parser::ElsePartContext* ctx) override;
+
+  void enterIf(Lexy2Parser::IfContext* ctx) override;
+  void exitIf(Lexy2Parser::IfContext* ctx) override;
+
+  void enterIfElse(Lexy2Parser::IfElseContext* ctx) override;
+  void exitIfElse(Lexy2Parser::IfElseContext* ctx) override;
 
   void exitComma(Lexy2Parser::CommaContext* ctx) override {}
 

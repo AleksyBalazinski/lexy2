@@ -18,4 +18,13 @@ inline std::pair<T, T> popTwo(std::stack<T>& stack) {
   stack.pop();
   return std::make_pair(left, right);
 }
-}  // namespace lexy2
+
+template <class T>
+inline std::pair<T, T> peekTwo(std::stack<T>& stack) {
+  const auto right = stack.top();
+  stack.pop();
+  const auto left = stack.top();
+  stack.push(right);
+  return std::make_pair(left, right);
+}
+}  // namespace lexy2::utils

@@ -1,4 +1,5 @@
 #include "llvm_generator.hpp"
+#include "utils.hpp"
 
 namespace lexy2 {
 std::string LLVMGenerator::getTypeString(Type type) {

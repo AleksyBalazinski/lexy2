@@ -91,6 +91,68 @@ void TranslatorListener::exitCompoundStatement(
   symbolTable.leaveScope();
 }
 
+void TranslatorListener::exitCondition(Lexy2Parser::ConditionContext* ctx) {
+  Value cond = valueStack.top();
+  valueStack.pop();
+  if (cond.typeID != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Condition must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+  auto [endOrElseLabel, thenLabel] = utils::peekTwo(basicBlockStack);
+  generator.createBranch(cond.name, thenLabel, endOrElseLabel);
+}
+
+void TranslatorListener::enterThenPart(Lexy2Parser::ThenPartContext* ctx) {
+  auto thenLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(thenLabel);
+}
+
+void TranslatorListener::exitThenPart(Lexy2Parser::ThenPartContext* ctx) {
+  generator.createBranch(returnPointsStack.top());
+}
+
+void TranslatorListener::enterElsePart(Lexy2Parser::ElsePartContext* ctx) {
+  auto elseLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(elseLabel);
+}
+
+void TranslatorListener::exitElsePart(Lexy2Parser::ElsePartContext* ctx) {
+  generator.createBranch(returnPointsStack.top());
+}
+
+void TranslatorListener::enterIf(Lexy2Parser::IfContext* ctx) {
+  const auto endLabel = generator.getIfEndLabel();
+  basicBlockStack.push(endLabel);
+  basicBlockStack.push(generator.getIfThenLabel());
+  returnPointsStack.push(endLabel);
+}
+
+void TranslatorListener::exitIf(Lexy2Parser::IfContext* ctx) {
+  auto endLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(endLabel);
+  returnPointsStack.pop();
+}
+
+void TranslatorListener::enterIfElse(Lexy2Parser::IfElseContext* ctx) {
+  const auto endLabel = generator.getIfEndLabel();
+  basicBlockStack.push(endLabel);
+  basicBlockStack.push(generator.getIfElseLabel());
+  basicBlockStack.push(generator.getIfThenLabel());
+  returnPointsStack.push(endLabel);
+}
+
+void TranslatorListener::exitIfElse(Lexy2Parser::IfElseContext* ctx) {
+  auto endLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(endLabel);
+  returnPointsStack.pop();
+}
+
 void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   if (inErrorMode)
     return;
