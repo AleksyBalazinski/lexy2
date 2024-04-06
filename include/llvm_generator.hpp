@@ -3,7 +3,6 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include "operations.hpp"
 
 namespace lexy2 {
 
@@ -74,6 +73,8 @@ class LLVMGenerator {
   void printDouble(const std::string& id);
 
   std::string emitCode(const std::string& source_filename);
+
+  static std::string getZeroLiteral(Type type);
 
  private:
   std::string getRegStr() const { return "%" + std::to_string(reg); }

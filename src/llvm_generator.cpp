@@ -151,4 +151,16 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
   code += getIndent() + "ret i32 0\n}\n";
   return code;
 }
+
+std::string LLVMGenerator::getZeroLiteral(Type type) {
+  switch (type) {
+    case Type::I32:
+    case Type::I8:
+      return "0";
+    case Type::DOUBLE:
+      return "0.0";
+    default:
+      __builtin_unreachable();
+  }
+}
 }  // namespace lexy2

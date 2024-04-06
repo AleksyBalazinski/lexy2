@@ -194,17 +194,53 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
   if (right.category == Value::Category::MEMORY) {
     right = load(right);
   }
+
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
+      return;
+    }
+  }
+
   auto op = ctx->op->getText();
   if (op == "<") {
+    if (!typeManager.isOperatorSupported(Operator::LT, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '<' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(compareRegisters(left, right, Relation::LT));
   }
   if (op == ">") {
+    if (!typeManager.isOperatorSupported(Operator::GT, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '>' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(compareRegisters(left, right, Relation::GT));
   }
   if (op == "<=") {
+    if (!typeManager.isOperatorSupported(Operator::LE, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '<=' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(compareRegisters(left, right, Relation::LE));
   }
   if (op == ">=") {
+    if (!typeManager.isOperatorSupported(Operator::GE, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '>=' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(compareRegisters(left, right, Relation::GE));
   }
 }
@@ -328,9 +364,23 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
   }
 
   if (ctx->op->getText() == "-") {
+    if (!typeManager.isOperatorSupported(Operator::NEG, value.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Unary operator '-' cannot be applied to argument of type ?");
+      return;
+    }
     valueStack.push(negateRegister(value));
   }
   if (ctx->op->getText() == "+") {
+    if (!typeManager.isOperatorSupported(Operator::POS, value.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Unary operator '+' cannot be applied to argument of type ?");
+      return;
+    }
     valueStack.push(plusRegister(value));
   }
 }

@@ -9,10 +9,10 @@
 #include "Lexy2BaseListener.h"
 #include "error_handler.hpp"
 #include "llvm_generator.hpp"
+#include "operations.hpp"
 #include "symbol_table.hpp"
 #include "type_manager.hpp"
 #include "utils.hpp"
-
 namespace lexy2 {
 
 class TranslatorListener : public Lexy2BaseListener {
@@ -153,104 +153,20 @@ class TranslatorListener : public Lexy2BaseListener {
   }
 
   Value negateRegister(const Value& value) {
-    std::string regStr;
-    if (value.typeID == INT_TYPE_ID) {
-      regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
-                                     LLVMGenerator::Type::I32, "0", value.name);
-      return Value(regStr, INT_TYPE_ID);
-    } else if (value.typeID == DOUBLE_TYPE_ID) {
-      regStr =
-          generator.createBinOp(LLVMGenerator::BinOpName::SUB,
-                                LLVMGenerator::Type::DOUBLE, "0.0", value.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    throw std::runtime_error("Not implemented");  // TODO: user defined types
+    auto llvmType = toLLVMType(static_cast<PrimitiveType>(value.typeID));
+    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB, llvmType,
+                                        LLVMGenerator::getZeroLiteral(llvmType),
+                                        value.name);
+    return Value(regStr, value.typeID);
   }
 
   Value plusRegister(const Value& value) { return value; }
 
   Value compareRegisters(Value left, Value right, Relation rel) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      left.name = generator.castI32ToDouble(left.name);
-      left.typeID = DOUBLE_TYPE_ID;
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      right.name = generator.castI32ToDouble(right.name);
-      right.typeID = DOUBLE_TYPE_ID;
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      std::string regStr;
-      switch (rel) {
-        case Relation::EQ:
-          regStr = generator.createRel(LLVMGenerator::Type::I32,
-                                       LLVMGenerator::RelName::EQ, left.name,
-                                       right.name);
-          break;
-        case Relation::NEQ:
-          regStr = generator.createRel(LLVMGenerator::Type::I32,
-                                       LLVMGenerator::RelName::NE, left.name,
-                                       right.name);
-          break;
-        case Relation::GE:
-          regStr = generator.createRel(LLVMGenerator::Type::I32,
-                                       LLVMGenerator::RelName::GE, left.name,
-                                       right.name);
-          break;
-        case Relation::GT:
-          regStr = generator.createRel(LLVMGenerator::Type::I32,
-                                       LLVMGenerator::RelName::GT, left.name,
-                                       right.name);
-          break;
-        case Relation::LE:
-          regStr = generator.createRel(LLVMGenerator::Type::I32,
-                                       LLVMGenerator::RelName::LE, left.name,
-                                       right.name);
-          break;
-        case Relation::LT:
-          regStr = generator.createRel(LLVMGenerator::Type::I32,
-                                       LLVMGenerator::RelName::LT, left.name,
-                                       right.name);
-          break;
-      }
-      return Value(regStr, BOOL_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      std::string regStr;
-      switch (rel) {
-        case Relation::EQ:
-          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
-                                       LLVMGenerator::RelName::EQ, left.name,
-                                       right.name);
-          break;
-        case Relation::NEQ:
-          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
-                                       LLVMGenerator::RelName::NE, left.name,
-                                       right.name);
-          break;
-        case Relation::GE:
-          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
-                                       LLVMGenerator::RelName::GE, left.name,
-                                       right.name);
-          break;
-        case Relation::GT:
-          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
-                                       LLVMGenerator::RelName::GT, left.name,
-                                       right.name);
-          break;
-        case Relation::LE:
-          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
-                                       LLVMGenerator::RelName::LE, left.name,
-                                       right.name);
-          break;
-        case Relation::LT:
-          regStr = generator.createRel(LLVMGenerator::Type::DOUBLE,
-                                       LLVMGenerator::RelName::LT, left.name,
-                                       right.name);
-          break;
-      }
-      return Value(regStr, BOOL_TYPE_ID);
-    }
-    throw std::runtime_error("Not implemented");
+    auto regStr =
+        generator.createRel(toLLVMType(static_cast<PrimitiveType>(left.typeID)),
+                            toLLVMRel(rel), left.name, right.name);
+    return Value(regStr, BOOL_TYPE_ID);
   }
 
   Value load(const Value& val) {
