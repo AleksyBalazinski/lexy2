@@ -1,4 +1,5 @@
 #include "translator_listener.hpp"
+#include <tuple>
 
 namespace lexy2 {
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
@@ -110,6 +111,17 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   auto variable = iter->second;
   variable.name += symbolTable.getScopeID(depth);
 
+  if (variable.typeID != value.typeID) {
+    if (typeManager.isImplicitFromTo(value.typeID, variable.typeID)) {
+      value = castRegister(value, variable.typeID);
+    } else {
+      errorHandler.reportError(utils::getLineCol(ctx),
+                               "No implicit conversion from ? to ?");
+      inErrorMode = true;
+      return;
+    }
+  }
+
   const auto op = ctx->op->getText();
   if (op == "+=") {
     variable = load(variable);
@@ -125,17 +137,14 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   }
   if (op == "%=") {
     variable = load(variable);
-    auto res = modRegisters(variable, value, ctx);
-    if (res.has_value()) {
-      value = *res;
-    } else {
-      return;
-    }
+    value = modRegisters(variable, value);
+  }
+  if (op == "-=") {
+    variable = load(variable);
+    value = subtractRegisters(variable, value);
   }
   if (op == "=") {
-    if (variable.typeID != value.typeID) {
-      value = castRegister(value, variable.typeID);
-    }
+    // do nothing
   }
   const auto scopedIdentifier = identifier + symbolTable.getScopeID(depth);
   if (variable.typeID == DOUBLE_TYPE_ID) {
@@ -211,11 +220,33 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
   if (right.category == Value::Category::MEMORY) {
     right = load(right);
   }
+
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
+      return;
+    }
+  }
+
   auto op = ctx->op->getText();
   if (op == "+") {
+    if (!typeManager.isOperatorSupported(Operator::ADD, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '+' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(addRegisters(left, right));
   }
   if (op == "-") {
+    if (!typeManager.isOperatorSupported(Operator::SUB, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '-' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(subtractRegisters(left, right));
   }
 }
@@ -233,20 +264,43 @@ void TranslatorListener::exitMultiplicative(
     right = load(right);
   }
 
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
+      return;
+    }
+  }
+
   auto op = ctx->op->getText();
   if (op == "*") {
+    if (!typeManager.isOperatorSupported(Operator::MUL, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '*' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(multiplyRegisters(left, right));
   }
   if (op == "/") {
+    if (!typeManager.isOperatorSupported(Operator::DIV, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '/' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(divideRegisters(left, right));
   }
   if (op == "%") {
-    const auto val = modRegisters(left, right, ctx);
-    if (val.has_value()) {
-      valueStack.push(*val);
-    } else {
+    if (!typeManager.isOperatorSupported(Operator::REM, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '%' cannot be applied to arguments of type ? and ?");
       return;
     }
+    valueStack.push(modRegisters(left, right));
   }
 }
 

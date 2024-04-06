@@ -10,6 +10,7 @@
 #include "error_handler.hpp"
 #include "llvm_generator.hpp"
 #include "symbol_table.hpp"
+#include "type_manager.hpp"
 #include "utils.hpp"
 
 namespace lexy2 {
@@ -18,10 +19,12 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
-  const int INT_TYPE_ID = 0;
+  const int INT_TYPE_ID =
+      0;  // TODO this should be replaced by casts from PrimitiveType enum
   const int DOUBLE_TYPE_ID = 1;
   const int BOOL_TYPE_ID = 2;
   std::unordered_map<std::string, int> typeIDs;
+  TypeManager typeManager;
 
   ErrorHandler& errorHandler;
   bool inErrorMode = false;
@@ -88,111 +91,43 @@ class TranslatorListener : public Lexy2BaseListener {
 
  private:
   Value addRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::ADD,
-                                          LLVMGenerator::Type::I32, left.name,
-                                          right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::ADD,
-                                          LLVMGenerator::Type::DOUBLE,
-                                          left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return addWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return addWithRightCast(right, left);
-    }
-    throw std::runtime_error("Not implemented");  // TODO: user defined types
+    auto regStr = generator.createBinOp(
+        LLVMGenerator::BinOpName::ADD,
+        toLLVMType(static_cast<PrimitiveType>(left.typeID)), left.name,
+        right.name);
+    return Value(regStr, left.typeID);
   }
 
   Value subtractRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
-                                          LLVMGenerator::Type::I32, left.name,
-                                          right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
-                                          LLVMGenerator::Type::DOUBLE,
-                                          left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return subWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return subWithLeftCast(left, right);
-    }
-    throw std::runtime_error("Not implemented");  // TODO: user defined types
+    auto regStr = generator.createBinOp(
+        LLVMGenerator::BinOpName::SUB,
+        toLLVMType(static_cast<PrimitiveType>(left.typeID)), left.name,
+        right.name);
+    return Value(regStr, left.typeID);
   }
 
   Value multiplyRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::MUL,
-                                          LLVMGenerator::Type::I32, left.name,
-                                          right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::MUL,
-                                          LLVMGenerator::Type::DOUBLE,
-                                          left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return mulWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return mulWithRightCast(right, left);
-    }
-    throw std::runtime_error("Not implemented");  // TODO: user defined types
+    auto regStr = generator.createBinOp(
+        LLVMGenerator::BinOpName::MUL,
+        toLLVMType(static_cast<PrimitiveType>(left.typeID)), left.name,
+        right.name);
+    return Value(regStr, left.typeID);
   }
 
   Value divideRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
-                                          LLVMGenerator::Type::I32, left.name,
-                                          right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
-                                          LLVMGenerator::Type::DOUBLE,
-                                          left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return divWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return divWithLeftCast(left, right);
-    }
-    throw std::runtime_error("Not implemented");  // TODO: user defined types
+    auto regStr = generator.createBinOp(
+        LLVMGenerator::BinOpName::DIV,
+        toLLVMType(static_cast<PrimitiveType>(left.typeID)), left.name,
+        right.name);
+    return Value(regStr, left.typeID);
   }
 
-  std::optional<Value> modRegisters(
-      const Value& left, const Value& right,
-      antlr4::ParserRuleContext*
-          ctx) {  // TODO: check if conversion is valid before entering
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SREM,
-                                          LLVMGenerator::Type::I32, left.name,
-                                          right.name);
-      return Value(regStr, INT_TYPE_ID);
-    } else {
-      auto pos = utils::getLineCol(ctx);
-      errorHandler.reportError(
-          pos.first, pos.second,
-          "Operator '%' can only be applied to int operands");
-      inErrorMode = true;
-      return {};
-    }
-    throw std::runtime_error("Not implemented");  // TODO: user defined types
+  Value modRegisters(const Value& left, const Value& right) {
+    auto regStr = generator.createBinOp(
+        LLVMGenerator::BinOpName::SREM,
+        toLLVMType(static_cast<PrimitiveType>(left.typeID)), left.name,
+        right.name);
+    return Value(regStr, left.typeID);
   }
 
   Value castRegister(const Value& value, int targetType) {
@@ -233,54 +168,6 @@ class TranslatorListener : public Lexy2BaseListener {
   }
 
   Value plusRegister(const Value& value) { return value; }
-
-  Value mulWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::MUL,
-                                        LLVMGenerator::Type::DOUBLE, left.name,
-                                        tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value divWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
-                                        LLVMGenerator::Type::DOUBLE, left.name,
-                                        tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value divWithLeftCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(left.name);
-    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::DIV,
-                                        LLVMGenerator::Type::DOUBLE, tempRegStr,
-                                        right.name);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value addWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::ADD,
-                                        LLVMGenerator::Type::DOUBLE, left.name,
-                                        tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value subWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
-                                        LLVMGenerator::Type::DOUBLE, left.name,
-                                        tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value subWithLeftCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(left.name);
-    auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB,
-                                        LLVMGenerator::Type::DOUBLE, tempRegStr,
-                                        right.name);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
 
   Value compareRegisters(Value left, Value right, Relation rel) {
     if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
@@ -380,6 +267,27 @@ class TranslatorListener : public Lexy2BaseListener {
       return Value(generator.truncateI8ToI1(loaded), BOOL_TYPE_ID);
     }
     throw std::runtime_error("Not implemented");
+  }
+
+  bool applyBuiltInConversions(Value& left, Value& right,
+                               const antlr4::ParserRuleContext* ctx) {
+    bool implicitLeftRight =
+        typeManager.isImplicitFromTo(left.typeID, right.typeID);
+    bool implicitRightLeft =
+        typeManager.isImplicitFromTo(right.typeID, left.typeID);
+    if (!implicitLeftRight && !implicitRightLeft) {
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "No implicit conversion exists between arguments of type ? and ?");
+      return false;
+    }
+
+    if (implicitLeftRight) {
+      left = castRegister(left, right.typeID);
+    } else {
+      right = castRegister(right, left.typeID);
+    }
+    return true;
   }
 };
 }  // namespace lexy2
