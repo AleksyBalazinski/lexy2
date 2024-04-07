@@ -67,6 +67,17 @@ class TranslatorListener : public Lexy2BaseListener {
   void enterIfElse(Lexy2Parser::IfElseContext* ctx) override;
   void exitIfElse(Lexy2Parser::IfElseContext* ctx) override;
 
+  void enterWhileLoopBody(Lexy2Parser::WhileLoopBodyContext* ctx) override;
+  void exitWhileLoopBody(Lexy2Parser::WhileLoopBodyContext* ctx) override;
+
+  void enterWhileLoopCondition(
+      Lexy2Parser::WhileLoopConditionContext* ctx) override;
+  void exitWhileLoopCondition(
+      Lexy2Parser::WhileLoopConditionContext* ctx) override;
+
+  void enterWhileLoop(Lexy2Parser::WhileLoopContext* ctx) override;
+  void exitWhileLoop(Lexy2Parser::WhileLoopContext* ctx) override;
+
   void exitComma(Lexy2Parser::CommaContext* ctx) override {}
 
   void exitTernary(Lexy2Parser::TernaryContext* ctx) override {}

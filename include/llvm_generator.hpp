@@ -15,9 +15,14 @@ class LLVMGenerator {
  private:
   std::string text;
   int reg = 1;
+
   int ifEndNumber = 0;
   int ifElseNumber = 0;
   int ifThenNumber = 0;
+
+  int whileCondNumber = 0;
+  int whileBodyNumber = 0;
+  int whileEndNumber = 0;
 
   static std::string getTypeString(Type type);
   static std::string getOpPrefix(Type type);
@@ -79,21 +84,27 @@ class LLVMGenerator {
   void createLabel(const std::string& label) { text += label + ":\n"; }
 
   std::string getIfThenLabel() {
-    auto suffix = ifThenNumber == 0 ? "" : std::to_string(ifThenNumber);
-    ++ifThenNumber;
-    return "if.then" + suffix;
+    return getNumberedLabel("if.then", ifThenNumber);
   }
 
   std::string getIfEndLabel() {
-    auto suffix = ifEndNumber == 0 ? "" : std::to_string(ifEndNumber);
-    ++ifEndNumber;
-    return "if.end" + suffix;
+    return getNumberedLabel("if.end", ifEndNumber);
   }
 
   std::string getIfElseLabel() {
-    auto suffix = ifElseNumber == 0 ? "" : std::to_string(ifElseNumber);
-    ++ifElseNumber;
-    return "if.else" + suffix;
+    return getNumberedLabel("if.else", ifElseNumber);
+  }
+
+  std::string getWhileCondLabel() {
+    return getNumberedLabel("while.cond", whileCondNumber);
+  }
+
+  std::string getWhileBodyLabel() {
+    return getNumberedLabel("while.body", whileBodyNumber);
+  }
+
+  std::string getWhileEndLabel() {
+    return getNumberedLabel("while.end", whileEndNumber);
   }
 
   std::string castI32ToDouble(const std::string& id);
@@ -123,6 +134,12 @@ class LLVMGenerator {
   std::string getCStdLibDeclarations() {
     std::string declarePrintf = "declare i32 @printf(ptr, ...)";
     return declarePrintf + "\n";
+  }
+
+  std::string getNumberedLabel(const char* label, int& num) {
+    auto suffix = num == 0 ? "" : std::to_string(num);
+    ++num;
+    return label + suffix;
   }
 };
 }  // namespace lexy2

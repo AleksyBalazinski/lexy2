@@ -7,7 +7,8 @@ statement:
 	| declStatement
 	| printStatement
 	| compoundStatement
-	| selectionStatement;
+	| selectionStatement
+	| iterationStatement;
 
 exprStatement: expr ';';
 
@@ -26,3 +27,10 @@ elsePart: compoundStatement;
 selectionStatement:
 	'if' condition thenPart						# if
 	| 'if' condition thenPart 'else' elsePart	# ifElse;
+
+whileLoopBody: compoundStatement;
+
+whileLoopCondition: expr;
+
+iterationStatement:
+	'while' whileLoopCondition whileLoopBody # whileLoop;

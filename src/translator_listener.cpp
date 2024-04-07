@@ -153,6 +153,56 @@ void TranslatorListener::exitIfElse(Lexy2Parser::IfElseContext* ctx) {
   returnPointsStack.pop();
 }
 
+void TranslatorListener::enterWhileLoopBody(
+    Lexy2Parser::WhileLoopBodyContext* ctx) {
+  auto bodyLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(bodyLabel);
+}
+
+void TranslatorListener::exitWhileLoopBody(
+    Lexy2Parser::WhileLoopBodyContext* ctx) {
+  auto condLabel = returnPointsStack.top();
+  returnPointsStack.pop();
+  generator.createBranch(condLabel);
+}
+
+void TranslatorListener::enterWhileLoopCondition(
+    Lexy2Parser::WhileLoopConditionContext* ctx) {
+  auto condLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createBranch(condLabel);
+  generator.createLabel(condLabel);
+}
+
+void TranslatorListener::exitWhileLoopCondition(
+    Lexy2Parser::WhileLoopConditionContext* ctx) {
+  Value cond = valueStack.top();
+  valueStack.pop();
+  if (cond.typeID != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Condition must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+  auto [endLabel, bodyLabel] = utils::peekTwo(basicBlockStack);
+  generator.createBranch(cond.name, bodyLabel, endLabel);
+}
+
+void TranslatorListener::enterWhileLoop(Lexy2Parser::WhileLoopContext* ctx) {
+  basicBlockStack.push(generator.getWhileEndLabel());
+  basicBlockStack.push(generator.getWhileBodyLabel());
+  auto condLabel = generator.getWhileCondLabel();
+  basicBlockStack.push(condLabel);
+  returnPointsStack.push(condLabel);
+}
+
+void TranslatorListener::exitWhileLoop(Lexy2Parser::WhileLoopContext* ctx) {
+  auto end = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(end);
+}
+
 void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   if (inErrorMode)
     return;
