@@ -15,7 +15,7 @@ class ErrorHandler {
 
     std::string getErrStr() const {
       return std::to_string(line) + ":" + std::to_string(column) +
-             ": \033[91merror:\033[0m " + msg + "\n\n";
+             ": \033[91merror:\033[0m " + msg;
     }
   };
 
@@ -38,7 +38,7 @@ class ErrorHandler {
   std::string getErrors() {
     std::string report;
     for (const auto& err : errors) {
-      report += sourceFileName + ":" + err.getErrStr();
+      report += sourceFileName + ":" + err.getErrStr() + "\n";
     }
     return report;
   }

@@ -19,6 +19,14 @@ void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
   }
 }
 
+void TranslatorListener::exitExprStatement(
+    Lexy2Parser::ExprStatementContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  valueStack.pop();
+}
+
 void TranslatorListener::exitPrintIntrinsic(
     Lexy2Parser::PrintIntrinsicContext* ctx) {
   if (inErrorMode)
@@ -254,8 +262,9 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   const auto identifier = ctx->IDENTIFIER()->getText();
   const auto [iter, depth] = symbolTable.globalFind(identifier);
   if (iter == symbolTable.end()) {
-    errorHandler.reportError(utils::getLineCol(ctx),
-                             "Identifier '" + identifier + "' not declared");
+    errorHandler.reportError(
+        utils::getLineCol(ctx),
+        "Identifier '" + identifier + "' not declared in this scope");
     inErrorMode = true;
     return;
   }
@@ -552,8 +561,9 @@ void TranslatorListener::exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) {
     scopedIdentifier.name += symbolTable.getScopeID(depth);
     valueStack.push(scopedIdentifier);
   } else {
-    errorHandler.reportError(utils::getLineCol(ctx),
-                             "Identifier '" + id + "' not declared");
+    errorHandler.reportError(
+        utils::getLineCol(ctx),
+        "Identifier '" + id + "' not declared in this scope");
     inErrorMode = true;
   }
 }

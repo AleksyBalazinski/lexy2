@@ -38,7 +38,7 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitStatement(Lexy2Parser::StatementContext* ctx) override;
 
-  void exitExprStatement(Lexy2Parser::ExprStatementContext* ctx) override {}
+  void exitExprStatement(Lexy2Parser::ExprStatementContext* ctx) override;
 
   void exitPrintIntrinsic(Lexy2Parser::PrintIntrinsicContext* ctx) override;
 
