@@ -2,6 +2,13 @@
 #include <tuple>
 
 namespace lexy2 {
+TranslatorListener::TranslatorListener(ErrorHandler& errorHandler)
+    : errorHandler(errorHandler) {
+  typeIDs.insert(std::make_pair("int", INT_TYPE_ID));
+  typeIDs.insert(std::make_pair("double", DOUBLE_TYPE_ID));
+  typeIDs.insert(std::make_pair("bool", BOOL_TYPE_ID));
+}
+
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
   if (inErrorMode) {  // synchronize
     encounteredErrors = true;
@@ -56,29 +63,22 @@ void TranslatorListener::exitDeclStatement(
     initializer = castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]);
   }
   const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
+  LLVMGenerator::Type type;
   if (initializer.typeID == INT_TYPE_ID) {
-    generator.createDeclaration(LLVMGenerator::Type::I32, scopedIdentifier);
-    generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
-                               initializer.name);
-    symbolTable.insertInCurrentScope(std::make_pair(
-        identifier, Value(identifier, INT_TYPE_ID, Value::Category::MEMORY)));
+    type = LLVMGenerator::Type::I32;
   }
   if (initializer.typeID == DOUBLE_TYPE_ID) {
-    generator.createDeclaration(LLVMGenerator::Type::DOUBLE, scopedIdentifier);
-    generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
-                               initializer.name);
-    symbolTable.insertInCurrentScope(std::make_pair(
-        identifier,
-        Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
+    type = LLVMGenerator::Type::DOUBLE;
   }
   if (initializer.typeID == BOOL_TYPE_ID) {
     initializer.name = generator.castI1toI8(initializer.name);
-    generator.createDeclaration(LLVMGenerator::Type::I8, scopedIdentifier);
-    generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
-                               initializer.name);
-    symbolTable.insertInCurrentScope(std::make_pair(
-        identifier, Value(identifier, BOOL_TYPE_ID, Value::Category::MEMORY)));
+    type = LLVMGenerator::Type::I8;
   }
+  generator.createDeclaration(type, scopedIdentifier);
+  generator.createAssignment(type, scopedIdentifier, initializer.name);
+  symbolTable.insertInCurrentScope(std::make_pair(
+      identifier,
+      Value(identifier, initializer.typeID, Value::Category::MEMORY)));
 }
 
 void TranslatorListener::enterCompoundStatement(
@@ -535,5 +535,9 @@ void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
     return;
 
   valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), BOOL_TYPE_ID));
+}
+
+std::string TranslatorListener::getCode(const std::string& sourceFilename) {
+  return generator.emitCode(sourceFilename);
 }
 }  // namespace lexy2

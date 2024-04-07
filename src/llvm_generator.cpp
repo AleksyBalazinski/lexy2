@@ -15,15 +15,27 @@ std::string LLVMGenerator::getTypeString(Type type) {
   }
 }
 
-std::string LLVMGenerator::getOpPrefix(Type type) {
-  switch (type) {
-    case Type::I32:
-    case Type::I8:
-      return "";
-    case Type::DOUBLE:
-      return "f";
-    default:
-      return "";
+std::string LLVMGenerator::getOpPrefix(Type type, BinOpName op) {
+  if (op != BinOpName::DIV && op != BinOpName::REM) {
+    switch (type) {
+      case Type::I32:
+      case Type::I8:
+        return "";
+      case Type::DOUBLE:
+        return "f";
+      default:
+        return "";
+    }
+  } else {
+    switch (type) {
+      case Type::I32:
+      case Type::I8:
+        return "s";
+      case Type::DOUBLE:
+        return "f";
+      default:
+        return "";
+    }
   }
 }
 
@@ -49,8 +61,8 @@ std::string LLVMGenerator::getOperationString(BinOpName op) {
       return "mul";
     case BinOpName::DIV:
       return "div";
-    case BinOpName::SREM:
-      return "srem";
+    case BinOpName::REM:
+      return "rem";
     case BinOpName::CMP:
       return "cmp";
     default:
@@ -133,10 +145,10 @@ void LLVMGenerator::printI32(const std::string& id) {
 }
 
 void LLVMGenerator::printDouble(const std::string& id) {
-  text +=
-      getIndent() +
-      "call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef " +
-      id + ")\n";
+  text += getIndent() +
+          "call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double "
+          "noundef " +
+          id + ")\n";
   reg++;
 }
 

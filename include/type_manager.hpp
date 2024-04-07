@@ -24,18 +24,7 @@ enum class Operator {
 };
 enum class PrimitiveType { INT, DOUBLE, BOOL };
 
-inline LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType) {
-  switch (primitiveType) {
-    case PrimitiveType::INT:
-      return LLVMGenerator::Type::I32;
-    case PrimitiveType::DOUBLE:
-      return LLVMGenerator::Type::DOUBLE;
-    case PrimitiveType::BOOL:
-      return LLVMGenerator::Type::I8;  // TODO this should be i1
-    default:
-      throw std::runtime_error("Not implemented");
-  }
-}
+LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType);
 
 class TypeManager {
   bool implicitConversions[3][3] = {

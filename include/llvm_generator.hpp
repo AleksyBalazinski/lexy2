@@ -8,8 +8,8 @@ namespace lexy2 {
 
 class LLVMGenerator {
  public:
-  enum class Type { I32, I8, DOUBLE };
-  enum class BinOpName { SUB, ADD, DIV, MUL, SREM, CMP };
+  enum class Type { I32, I8, DOUBLE, I1 };
+  enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP };
   enum class RelName { EQ, NE, GE, LE, GT, LT };
 
  private:
@@ -25,7 +25,7 @@ class LLVMGenerator {
   int whileEndNumber = 0;
 
   static std::string getTypeString(Type type);
-  static std::string getOpPrefix(Type type);
+  static std::string getOpPrefix(Type type, BinOpName op);
   static std::string getRelPrefix(Type type);
   static std::string getOperationString(BinOpName op);
   static std::string getRelName(RelName relName);
@@ -36,7 +36,7 @@ class LLVMGenerator {
   std::string createBinOp(BinOpName op, Type type, const std::string& arg1,
                           const std::string& arg2) {
     const auto regStr = getRegStr();
-    text += getIndent() + regStr + " = " + getOpPrefix(type) +
+    text += getIndent() + regStr + " = " + getOpPrefix(type, op) +
             getOperationString(op) + " " + getTypeString(type) + " " + arg1 +
             ", " + arg2 + "\n";
     reg++;
