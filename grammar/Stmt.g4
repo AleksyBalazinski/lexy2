@@ -22,7 +22,9 @@ condition: expr;
 
 thenPart: compoundStatement;
 
-elsePart: compoundStatement;
+elsePart:
+	selectionStatement
+	| compoundStatement ; // allow for clean else-if
 
 selectionStatement:
 	'if' condition thenPart						# if

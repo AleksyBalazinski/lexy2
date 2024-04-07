@@ -2,16 +2,12 @@ let i = 0;
 while i <= 10 { // fizzbuzz
     if i % 15 == 0 {
         __print 150;
+    } else if i % 5 == 0 {
+        __print 500;
+    } else if i % 3 == 0 {
+        __print 300;
     } else {
-        if i % 5 == 0 {
-            __print 500;
-        } else {
-            if i % 3 == 0 {
-                __print 300;
-            } else {
-                __print i;
-            }
-        }
+        __print i;
     }
     i += 1;
 }
