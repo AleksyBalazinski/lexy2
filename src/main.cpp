@@ -35,7 +35,7 @@ int main(int argc, const char* argv[]) {
 
   if (errorHandler.hasErrors()) {
     std::cerr << errorHandler.getErrors();
-    return 2;
+    return 1;
   }
 
   const auto llvmCode = translationListener.getCode(sourceFilename);

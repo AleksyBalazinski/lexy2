@@ -1,0 +1,10 @@
+let x = false;
+x = 3 > 2;
+__print x;
+{
+    let y = 100 == 100;
+    __print y;
+    let x = false;
+    __print x;
+}
+__print x;

@@ -5,46 +5,34 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
+
 #include "Lexy2BaseListener.h"
 #include "error_handler.hpp"
 #include "llvm_generator.hpp"
+#include "operations.hpp"
+#include "symbol_table.hpp"
+#include "type_manager.hpp"
 #include "utils.hpp"
-
 namespace lexy2 {
-
-struct Value {
-  enum class Category { REGISTER, MEMORY, CONSTANT };
-  Value(std::string name, int typeID, Category category)
-      : name(std::move(name)), typeID(typeID), category(category) {}
-
-  Value(std::string name, int typeID)
-      : Value(name, typeID, Category::REGISTER) {}
-
-  std::string name;
-  int typeID;
-  Category category;
-};
 
 class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
-  std::unordered_map<std::string, Value> symbolTable;
+  std::stack<std::string> basicBlockStack;
+  std::stack<std::string> returnPointsStack;
+  SymbolTable symbolTable;
   LLVMGenerator generator;
-  const int INT_TYPE_ID = 0;
-  const int DOUBLE_TYPE_ID = 1;
-  const int BOOL_TYPE_ID = 2;
+  const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
+  const int DOUBLE_TYPE_ID = static_cast<int>(PrimitiveType::DOUBLE);
+  const int BOOL_TYPE_ID = static_cast<int>(PrimitiveType::BOOL);
   std::unordered_map<std::string, int> typeIDs;
+  TypeManager typeManager;
 
   ErrorHandler& errorHandler;
   bool inErrorMode = false;
   bool encounteredErrors = false;
 
  public:
-  TranslatorListener(ErrorHandler& errorHandler) : errorHandler(errorHandler) {
-    typeIDs.insert(std::make_pair("int", INT_TYPE_ID));
-    typeIDs.insert(std::make_pair("double", DOUBLE_TYPE_ID));
-    typeIDs.insert(std::make_pair("bool", BOOL_TYPE_ID));
-  }
+  TranslatorListener(ErrorHandler& errorHandler);
 
   void exitTranslationUnit(Lexy2Parser::TranslationUnitContext* ctx) override {}
 
@@ -56,6 +44,36 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitDeclStatement(Lexy2Parser::DeclStatementContext* ctx) override;
 
+  void enterCompoundStatement(
+      Lexy2Parser::CompoundStatementContext* ctx) override;
+  void exitCompoundStatement(
+      Lexy2Parser::CompoundStatementContext* ctx) override;
+
+  void exitCondition(Lexy2Parser::ConditionContext* ctx) override;
+
+  void enterThenPart(Lexy2Parser::ThenPartContext* ctx) override;
+  void exitThenPart(Lexy2Parser::ThenPartContext* ctx) override;
+
+  void enterElsePart(Lexy2Parser::ElsePartContext* ctx) override;
+  void exitElsePart(Lexy2Parser::ElsePartContext* ctx) override;
+
+  void enterIf(Lexy2Parser::IfContext* ctx) override;
+  void exitIf(Lexy2Parser::IfContext* ctx) override;
+
+  void enterIfElse(Lexy2Parser::IfElseContext* ctx) override;
+  void exitIfElse(Lexy2Parser::IfElseContext* ctx) override;
+
+  void enterWhileLoopBody(Lexy2Parser::WhileLoopBodyContext* ctx) override;
+  void exitWhileLoopBody(Lexy2Parser::WhileLoopBodyContext* ctx) override;
+
+  void enterWhileLoopCondition(
+      Lexy2Parser::WhileLoopConditionContext* ctx) override;
+  void exitWhileLoopCondition(
+      Lexy2Parser::WhileLoopConditionContext* ctx) override;
+
+  void enterWhileLoop(Lexy2Parser::WhileLoopContext* ctx) override;
+  void exitWhileLoop(Lexy2Parser::WhileLoopContext* ctx) override;
+
   void exitComma(Lexy2Parser::CommaContext* ctx) override {}
 
   void exitTernary(Lexy2Parser::TernaryContext* ctx) override {}
@@ -66,9 +84,9 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) override {}
 
-  void exitEquality(Lexy2Parser::EqualityContext* ctx) override {}
+  void exitEquality(Lexy2Parser::EqualityContext* ctx) override;
 
-  void exitRelation(Lexy2Parser::RelationContext* ctx) override {}
+  void exitRelation(Lexy2Parser::RelationContext* ctx) override;
 
   void exitAdditive(Lexy2Parser::AdditiveContext* ctx) override;
 
@@ -88,178 +106,30 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) override;
 
-  std::string getCode(const std::string& sourceFilename) {
-    return generator.emitCode(sourceFilename);
-  }
+  std::string getCode(const std::string& sourceFilename);
 
  private:
-  Value addRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.addI32(left.name, right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.addDouble(left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return addWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return addWithRightCast(right, left);
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value addRegisters(const Value& left, const Value& right);
 
-  Value subtractRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.subI32(left.name, right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.subDouble(left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return subWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return subWithLeftCast(left, right);
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value subtractRegisters(const Value& left, const Value& right);
 
-  Value multiplyRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.mulI32(left.name, right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.mulDouble(left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return mulWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return mulWithRightCast(right, left);
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value multiplyRegisters(const Value& left, const Value& right);
 
-  Value divideRegisters(const Value& left, const Value& right) {
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.divI32(left.name, right.name);
-      return Value(regStr, INT_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      auto regStr = generator.divDouble(left.name, right.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    if (left.typeID == DOUBLE_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      return divWithRightCast(left, right);
-    }
-    if (left.typeID == INT_TYPE_ID && right.typeID == DOUBLE_TYPE_ID) {
-      return divWithLeftCast(left, right);
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value divideRegisters(const Value& left, const Value& right);
 
-  std::optional<Value> modRegisters(
-      const Value& left, const Value& right,
-      antlr4::ParserRuleContext*
-          ctx) {  // TODO: check if conversion is valid before entering
-    if (left.typeID == INT_TYPE_ID && right.typeID == INT_TYPE_ID) {
-      auto regStr = generator.remI32(left.name, right.name);
-      return Value(regStr, INT_TYPE_ID);
-    } else {
-      auto pos = utils::getLineCol(ctx);
-      errorHandler.reportError(
-          pos.first, pos.second,
-          "Operator '%' can only be applied to int operands");
-      inErrorMode = true;
-      return {};
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value modRegisters(const Value& left, const Value& right);
 
-  Value castRegister(const Value& value, int targetType) {
-    if (value.typeID == targetType) {
-      return value;  // do nothing
-    }
-    if (value.typeID == INT_TYPE_ID) {
-      if (targetType == DOUBLE_TYPE_ID) {
-        auto regStr = generator.castI32ToDouble(value.name);
-        return Value(regStr, DOUBLE_TYPE_ID);
-      }
-    }
-    if (value.typeID == DOUBLE_TYPE_ID) {
-      if (targetType == INT_TYPE_ID) {
-        auto regStr = generator.castDoubleToI32(value.name);
-        return Value(regStr, INT_TYPE_ID);
-      }
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value castRegister(const Value& value, int targetType);
 
-  Value negateRegister(const Value& value) {
-    std::string regStr;
-    if (value.typeID == INT_TYPE_ID) {
-      regStr = generator.subI32("0", value.name);
-      return Value(regStr, INT_TYPE_ID);
-    } else if (value.typeID == DOUBLE_TYPE_ID) {
-      regStr = generator.subDouble("0.0", value.name);
-      return Value(regStr, DOUBLE_TYPE_ID);
-    }
-    throw std::exception();  // TODO: user defined types
-  }
+  Value negateRegister(const Value& value);
 
-  Value plusRegister(const Value& value) { return value; }
+  Value plusRegister(const Value& value);
 
-  Value mulWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.mulDouble(left.name, tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
+  Value compareRegisters(Value left, Value right, Relation rel);
 
-  Value divWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.divDouble(left.name, tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
+  Value load(const Value& val);
 
-  Value divWithLeftCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(left.name);
-    auto regStr = generator.divDouble(tempRegStr, right.name);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value addWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.addDouble(left.name, tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value subWithRightCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(right.name);
-    auto regStr = generator.subDouble(left.name, tempRegStr);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value subWithLeftCast(const Value& left, const Value& right) {
-    auto tempRegStr = generator.castI32ToDouble(left.name);
-    auto regStr = generator.subDouble(tempRegStr, right.name);
-    return Value(regStr, DOUBLE_TYPE_ID);
-  }
-
-  Value load(const Value& val) {
-    if (val.typeID == DOUBLE_TYPE_ID) {
-      return Value(generator.loadDouble(val.name), DOUBLE_TYPE_ID);
-    }
-    if (val.typeID == INT_TYPE_ID) {
-      return Value(generator.loadI32(val.name), INT_TYPE_ID);
-    }
-    throw std::exception();
-  }
+  bool applyBuiltInConversions(Value& left, Value& right,
+                               const antlr4::ParserRuleContext* ctx);
 };
 }  // namespace lexy2

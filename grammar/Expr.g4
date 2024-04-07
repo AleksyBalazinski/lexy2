@@ -1,19 +1,22 @@
 grammar Expr;
 
 TYPE_ID: 'double' | 'int' | 'bool'; // TODO user defined types
-IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
 
 INTEGER_LITERAL: [0-9]+;
 FLOAT_LITERAL:
 	[0-9]+ '.' [0-9]+ (('e' | 'E') ('+' | '-')? [0-9]+)?;
 BOOL_LITERAL: 'true' | 'false';
+
+IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
+
 WHITESPACE: [ \r\n\t]+ -> skip;
+COMMENT: '//' ~[\r\n]* -> skip;
 
 expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
 
 assignmentExpr:
-	conditionalExpr														# fwd01
-	| IDENTIFIER op = ('=' | '+=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
+	conditionalExpr																# fwd01
+	| IDENTIFIER op = ('=' | '+=' | '-=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
 
 conditionalExpr:
 	logicalOrExpr														# fwd05

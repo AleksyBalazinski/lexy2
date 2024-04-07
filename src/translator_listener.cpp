@@ -1,6 +1,14 @@
 #include "translator_listener.hpp"
+#include <tuple>
 
 namespace lexy2 {
+TranslatorListener::TranslatorListener(ErrorHandler& errorHandler)
+    : errorHandler(errorHandler) {
+  typeIDs.insert(std::make_pair("int", INT_TYPE_ID));
+  typeIDs.insert(std::make_pair("double", DOUBLE_TYPE_ID));
+  typeIDs.insert(std::make_pair("bool", BOOL_TYPE_ID));
+}
+
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
   if (inErrorMode) {  // synchronize
     encounteredErrors = true;
@@ -27,6 +35,10 @@ void TranslatorListener::exitPrintIntrinsic(
   if (value.typeID == DOUBLE_TYPE_ID) {
     generator.printDouble(value.name);
   }
+  if (value.typeID == BOOL_TYPE_ID) {
+    const auto casted = generator.castBoolToI32(value.name);
+    generator.printI32(casted);
+  }
 }
 
 void TranslatorListener::exitDeclStatement(
@@ -40,7 +52,8 @@ void TranslatorListener::exitDeclStatement(
   if (initializer.category == Value::Category::MEMORY) {
     initializer = load(initializer);
   }
-  if (symbolTable.find(identifier) != symbolTable.end()) {
+  if (symbolTable.currentScopeFind(identifier) !=
+      symbolTable.getCurrentScope().end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' already in use");
     inErrorMode = true;
@@ -49,19 +62,189 @@ void TranslatorListener::exitDeclStatement(
   if (ctx->TYPE_ID() != nullptr) {
     initializer = castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]);
   }
+  const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
+  LLVMGenerator::Type type;
   if (initializer.typeID == INT_TYPE_ID) {
-    generator.declareI32(identifier);
-    generator.assignI32(identifier, initializer.name);
-    symbolTable.insert(std::make_pair(
-        identifier, Value(identifier, INT_TYPE_ID, Value::Category::MEMORY)));
+    type = LLVMGenerator::Type::I32;
   }
   if (initializer.typeID == DOUBLE_TYPE_ID) {
-    generator.declareDouble(identifier);
-    generator.assignDouble(identifier, initializer.name);
-    symbolTable.insert(std::make_pair(
-        identifier,
-        Value(identifier, DOUBLE_TYPE_ID, Value::Category::MEMORY)));
+    type = LLVMGenerator::Type::DOUBLE;
   }
+  if (initializer.typeID == BOOL_TYPE_ID) {
+    initializer.name = generator.castI1toI8(initializer.name);
+    type = LLVMGenerator::Type::I8;
+  }
+  generator.createDeclaration(type, scopedIdentifier);
+  generator.createAssignment(type, scopedIdentifier, initializer.name);
+  symbolTable.insertInCurrentScope(std::make_pair(
+      identifier,
+      Value(identifier, initializer.typeID, Value::Category::MEMORY)));
+}
+
+void TranslatorListener::enterCompoundStatement(
+    Lexy2Parser::CompoundStatementContext* ctx) {
+  // note that this won't be skipped in panic mode
+  symbolTable.enterNewScope();
+}
+
+void TranslatorListener::exitCompoundStatement(
+    Lexy2Parser::CompoundStatementContext* ctx) {
+  // note that this won't be skipped in panic mode
+  symbolTable.leaveScope();
+}
+
+void TranslatorListener::exitCondition(Lexy2Parser::ConditionContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  Value cond = valueStack.top();
+  valueStack.pop();
+  if (cond.typeID != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Condition must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+  auto [endOrElseLabel, thenLabel] = utils::peekTwo(basicBlockStack);
+  generator.createBranch(cond.name, thenLabel, endOrElseLabel);
+}
+
+void TranslatorListener::enterThenPart(Lexy2Parser::ThenPartContext* ctx) {
+  auto thenLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(thenLabel);
+}
+
+void TranslatorListener::exitThenPart(Lexy2Parser::ThenPartContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  generator.createBranch(returnPointsStack.top());
+}
+
+void TranslatorListener::enterElsePart(Lexy2Parser::ElsePartContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto elseLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(elseLabel);
+}
+
+void TranslatorListener::exitElsePart(Lexy2Parser::ElsePartContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  generator.createBranch(returnPointsStack.top());
+}
+
+void TranslatorListener::enterIf(Lexy2Parser::IfContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  const auto endLabel = generator.getIfEndLabel();
+  basicBlockStack.push(endLabel);
+  basicBlockStack.push(generator.getIfThenLabel());
+  returnPointsStack.push(endLabel);
+}
+
+void TranslatorListener::exitIf(Lexy2Parser::IfContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto endLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(endLabel);
+  returnPointsStack.pop();
+}
+
+void TranslatorListener::enterIfElse(Lexy2Parser::IfElseContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  const auto endLabel = generator.getIfEndLabel();
+  basicBlockStack.push(endLabel);
+  basicBlockStack.push(generator.getIfElseLabel());
+  basicBlockStack.push(generator.getIfThenLabel());
+  returnPointsStack.push(endLabel);
+}
+
+void TranslatorListener::exitIfElse(Lexy2Parser::IfElseContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto endLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(endLabel);
+  returnPointsStack.pop();
+}
+
+void TranslatorListener::enterWhileLoopBody(
+    Lexy2Parser::WhileLoopBodyContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto bodyLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(bodyLabel);
+}
+
+void TranslatorListener::exitWhileLoopBody(
+    Lexy2Parser::WhileLoopBodyContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto condLabel = returnPointsStack.top();
+  returnPointsStack.pop();
+  generator.createBranch(condLabel);
+}
+
+void TranslatorListener::enterWhileLoopCondition(
+    Lexy2Parser::WhileLoopConditionContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto condLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createBranch(condLabel);
+  generator.createLabel(condLabel);
+}
+
+void TranslatorListener::exitWhileLoopCondition(
+    Lexy2Parser::WhileLoopConditionContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  Value cond = valueStack.top();
+  valueStack.pop();
+  if (cond.typeID != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Condition must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+  auto [endLabel, bodyLabel] = utils::peekTwo(basicBlockStack);
+  generator.createBranch(cond.name, bodyLabel, endLabel);
+}
+
+void TranslatorListener::enterWhileLoop(Lexy2Parser::WhileLoopContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  basicBlockStack.push(generator.getWhileEndLabel());
+  basicBlockStack.push(generator.getWhileBodyLabel());
+  auto condLabel = generator.getWhileCondLabel();
+  basicBlockStack.push(condLabel);
+  returnPointsStack.push(condLabel);
+}
+
+void TranslatorListener::exitWhileLoop(Lexy2Parser::WhileLoopContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto end = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(end);
 }
 
 void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
@@ -69,8 +252,8 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     return;
 
   const auto identifier = ctx->IDENTIFIER()->getText();
-  const auto pos = symbolTable.find(identifier);
-  if (pos == symbolTable.end()) {
+  const auto [iter, depth] = symbolTable.globalFind(identifier);
+  if (iter == symbolTable.end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + identifier + "' not declared");
     inErrorMode = true;
@@ -81,7 +264,19 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
   }
-  auto variable = pos->second;
+  auto variable = iter->second;
+  variable.name += symbolTable.getScopeID(depth);
+
+  if (variable.typeID != value.typeID) {
+    if (typeManager.isImplicitFromTo(value.typeID, variable.typeID)) {
+      value = castRegister(value, variable.typeID);
+    } else {
+      errorHandler.reportError(utils::getLineCol(ctx),
+                               "No implicit conversion from ? to ?");
+      inErrorMode = true;
+      return;
+    }
+  }
 
   const auto op = ctx->op->getText();
   if (op == "+=") {
@@ -98,25 +293,112 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   }
   if (op == "%=") {
     variable = load(variable);
-    auto res = modRegisters(variable, value, ctx);
-    if (res.has_value()) {
-      value = *res;
-    } else {
+    value = modRegisters(variable, value);
+  }
+  if (op == "-=") {
+    variable = load(variable);
+    value = subtractRegisters(variable, value);
+  }
+  if (op == "=") {
+    // do nothing
+  }
+  const auto scopedIdentifier = identifier + symbolTable.getScopeID(depth);
+  if (variable.typeID == DOUBLE_TYPE_ID) {
+    generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
+                               value.name);
+  }
+  if (variable.typeID == INT_TYPE_ID) {
+    generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
+                               value.name);
+  }
+  if (variable.typeID == BOOL_TYPE_ID) {
+    value.name = generator.castI1toI8(value.name);
+    generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
+                               value.name);
+  }
+  valueStack.push(value);
+}
+
+void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.category == Value::Category::MEMORY) {
+    left = load(left);
+  }
+  if (right.category == Value::Category::MEMORY) {
+    right = load(right);
+  }
+  auto op = ctx->op->getText();
+  if (op == "==") {
+    valueStack.push(compareRegisters(left, right, Relation::EQ));
+  }
+  if (op == "!=") {
+    valueStack.push(compareRegisters(left, right, Relation::NEQ));
+  }
+}
+
+void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.category == Value::Category::MEMORY) {
+    left = load(left);
+  }
+  if (right.category == Value::Category::MEMORY) {
+    right = load(right);
+  }
+
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
       return;
     }
   }
-  if (op == "=") {
-    if (variable.typeID != value.typeID) {
-      value = castRegister(value, variable.typeID);
+
+  auto op = ctx->op->getText();
+  if (op == "<") {
+    if (!typeManager.isOperatorSupported(Operator::LT, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '<' cannot be applied to arguments of type ? and ?");
+      return;
     }
+    valueStack.push(compareRegisters(left, right, Relation::LT));
   }
-  if (variable.typeID == DOUBLE_TYPE_ID) {
-    generator.assignDouble(identifier, value.name);
+  if (op == ">") {
+    if (!typeManager.isOperatorSupported(Operator::GT, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '>' cannot be applied to arguments of type ? and ?");
+      return;
+    }
+    valueStack.push(compareRegisters(left, right, Relation::GT));
   }
-  if (variable.typeID == INT_TYPE_ID) {
-    generator.assignI32(identifier, value.name);
+  if (op == "<=") {
+    if (!typeManager.isOperatorSupported(Operator::LE, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '<=' cannot be applied to arguments of type ? and ?");
+      return;
+    }
+    valueStack.push(compareRegisters(left, right, Relation::LE));
   }
-  valueStack.push(value);
+  if (op == ">=") {
+    if (!typeManager.isOperatorSupported(Operator::GE, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '>=' cannot be applied to arguments of type ? and ?");
+      return;
+    }
+    valueStack.push(compareRegisters(left, right, Relation::GE));
+  }
 }
 
 void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
@@ -130,11 +412,33 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
   if (right.category == Value::Category::MEMORY) {
     right = load(right);
   }
+
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
+      return;
+    }
+  }
+
   auto op = ctx->op->getText();
   if (op == "+") {
+    if (!typeManager.isOperatorSupported(Operator::ADD, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '+' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(addRegisters(left, right));
   }
   if (op == "-") {
+    if (!typeManager.isOperatorSupported(Operator::SUB, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '-' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(subtractRegisters(left, right));
   }
 }
@@ -152,20 +456,43 @@ void TranslatorListener::exitMultiplicative(
     right = load(right);
   }
 
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
+      return;
+    }
+  }
+
   auto op = ctx->op->getText();
   if (op == "*") {
+    if (!typeManager.isOperatorSupported(Operator::MUL, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '*' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(multiplyRegisters(left, right));
   }
   if (op == "/") {
+    if (!typeManager.isOperatorSupported(Operator::DIV, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '/' cannot be applied to arguments of type ? and ?");
+      return;
+    }
     valueStack.push(divideRegisters(left, right));
   }
   if (op == "%") {
-    const auto val = modRegisters(left, right, ctx);
-    if (val.has_value()) {
-      valueStack.push(*val);
-    } else {
+    if (!typeManager.isOperatorSupported(Operator::REM, left.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Operator '%' cannot be applied to arguments of type ? and ?");
       return;
     }
+    valueStack.push(modRegisters(left, right));
   }
 }
 
@@ -193,9 +520,23 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
   }
 
   if (ctx->op->getText() == "-") {
+    if (!typeManager.isOperatorSupported(Operator::NEG, value.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Unary operator '-' cannot be applied to argument of type ?");
+      return;
+    }
     valueStack.push(negateRegister(value));
   }
   if (ctx->op->getText() == "+") {
+    if (!typeManager.isOperatorSupported(Operator::POS, value.typeID)) {
+      inErrorMode = true;
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Unary operator '+' cannot be applied to argument of type ?");
+      return;
+    }
     valueStack.push(plusRegister(value));
   }
 }
@@ -205,9 +546,11 @@ void TranslatorListener::exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) {
     return;
 
   const auto id = ctx->IDENTIFIER()->getText();
-  const auto loc = symbolTable.find(id);
+  const auto [loc, depth] = symbolTable.globalFind(id);
   if (loc != symbolTable.end()) {
-    valueStack.push(loc->second);
+    auto scopedIdentifier = loc->second;
+    scopedIdentifier.name += symbolTable.getScopeID(depth);
+    valueStack.push(scopedIdentifier);
   } else {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Identifier '" + id + "' not declared");
@@ -236,5 +579,9 @@ void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
     return;
 
   valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), BOOL_TYPE_ID));
+}
+
+std::string TranslatorListener::getCode(const std::string& sourceFilename) {
+  return generator.emitCode(sourceFilename);
 }
 }  // namespace lexy2

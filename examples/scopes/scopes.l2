@@ -1,0 +1,81 @@
+let x = 3.0;
+let y = 2;
+let z = 3.14;
+let w = 1;
+let a = -1;
+__print x; // 3.0
+__print y; // 2
+__print z; // 3.14
+__print w; // 1
+{
+    let x = 4.0;
+    x *= 10; 
+    __print x; // 40.0
+    __print y * 4; // 8
+    let w = 1.23;
+    {
+        let y = 100;
+        __print x * 100; // 40.0 * 100 = 4000.0
+        __print y; // 100
+        __print z; // 3.14
+        __print w; // 1.23
+    }
+    __print w; // 1.23
+    {
+        let y = 250.0;
+        let w = 4321;
+        __print w; // 4321
+        __print y; // 250.0
+        {
+            __print a; // -1
+            __print y; // 250.0
+        }
+    }
+}
+__print x; // 3.0
+__print y; // 2
+__print z; // 3.14
+__print w; // 1
+{
+    let x = 123.456;
+    __print x; // 123.456
+    {
+        let a = 2.25;
+        __print a; // 2.25
+        {
+            {
+                let a = 3.25;
+                {
+                    {
+                        {
+                            __print a; // 3.25
+                        }
+                    }
+                    __print a; // 3.25
+                }
+            }
+            __print a; // 2.25
+        }
+    }
+    __print a; // -1
+    a *= 666;
+    {
+        let a = -1.23;
+        {
+            __print a; // -1.23
+        }
+        {
+            let a = -34;
+            __print a; // -34
+        }
+        {
+            let a = -35;
+            __print a; // -35
+        }
+        {
+            let a = -36;
+            __print a; // -36
+        }
+    }
+}
+__print a;

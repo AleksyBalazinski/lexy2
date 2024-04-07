@@ -53,6 +53,7 @@ libs/
 .vscode/c_cpp_properties.json
 .vscode/settings.json
 
-# generated code
-*.ll
+# ad hoc testing
+test.ll
 test.l2
+run.ps1

@@ -1,0 +1,26 @@
+let i = 0;
+while i <= 10 { // fizzbuzz
+    if i % 15 == 0 {
+        __print 150;
+    } else if i % 5 == 0 {
+        __print 500;
+    } else if i % 3 == 0 {
+        __print 300;
+    } else {
+        __print i;
+    }
+    i += 1;
+}
+
+__print 10000;
+let j = 0;
+let limit = 5;
+while j <= limit {
+    let k = j;
+    while k <= limit {
+        __print k;
+        k += 1;
+    }
+    j += 1;
+    __print 10000;
+}

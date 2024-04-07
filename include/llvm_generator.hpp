@@ -1,48 +1,127 @@
 #pragma once
 
+#include <optional>
+#include <stdexcept>
 #include <string>
-#include <string_view>
 
 namespace lexy2 {
 
 class LLVMGenerator {
+ public:
+  enum class Type { I32, I8, DOUBLE, I1 };
+  enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP };
+  enum class RelName { EQ, NE, GE, LE, GT, LT };
+
+ private:
   std::string text;
   int reg = 1;
 
+  int ifEndNumber = 0;
+  int ifElseNumber = 0;
+  int ifThenNumber = 0;
+
+  int whileCondNumber = 0;
+  int whileBodyNumber = 0;
+  int whileEndNumber = 0;
+
+  static std::string getTypeString(Type type);
+  static std::string getOpPrefix(Type type, BinOpName op);
+  static std::string getRelPrefix(Type type);
+  static std::string getOperationString(BinOpName op);
+  static std::string getRelName(RelName relName);
+  static std::string getRelNamePrefix(RelName relName, Type type);
+  static std::string getIndent() { return "  "; }
+
  public:
-  void declareI32(const std::string& id);
-  void declareDouble(const std::string& id);
+  std::string createBinOp(BinOpName op, Type type, const std::string& arg1,
+                          const std::string& arg2) {
+    const auto regStr = getRegStr();
+    text += getIndent() + regStr + " = " + getOpPrefix(type, op) +
+            getOperationString(op) + " " + getTypeString(type) + " " + arg1 +
+            ", " + arg2 + "\n";
+    reg++;
+    return regStr;
+  }
 
-  void assignI32(const std::string& id, const std::string& value);
-  void assignDouble(const std::string& id, const std::string& value);
+  std::string createRel(Type type, RelName relName, const std::string& arg1,
+                        const std::string& arg2) {
+    const auto regStr = getRegStr();
+    text += getIndent() + regStr + " = " + getRelPrefix(type) + "cmp" + " " +
+            getRelNamePrefix(relName, type) + getRelName(relName) + " " +
+            getTypeString(type) + " " + arg1 + ", " + arg2 + "\n";
+    reg++;
+    return regStr;
+  }
 
-  std::string loadI32(const std::string& id);
-  std::string loadDouble(const std::string& id);
+  void createAssignment(Type type, const std::string& identifier,
+                        const std::string& value) {
+    text += getIndent() + "store " + getTypeString(type) + " " + value + ", " +
+            getTypeString(type) + "* %" + identifier + "\n";
+  }
 
-  std::string addI32(const std::string& val1, const std::string& val2);
-  std::string addDouble(const std::string& val1, const std::string& val2);
+  void createDeclaration(Type type, const std::string& arg) {
+    text += getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
+  }
 
-  std::string subI32(const std::string& val1, const std::string& val2);
-  std::string subDouble(const std::string& val1, const std::string& val2);
+  std::string createLoad(Type type, const std::string& id) {
+    const auto regStr = getRegStr();
+    text += getIndent() + regStr + " = load " + getTypeString(type) + ", " +
+            getTypeString(type) + "* %" + id + "\n";
+    reg++;
+    return regStr;
+  }
 
-  std::string mulI32(const std::string& val1, const std::string& val2);
-  std::string mulDouble(const std::string& val1, const std::string& val2);
+  void createBranch(const std::string& cond, const std::string& ifTrue,
+                    const std::string& ifFalse) {
+    text += getIndent() + "br i1 " + cond + ", label %" + ifTrue + ", label %" +
+            ifFalse + "\n";
+  }
 
-  std::string divI32(const std::string& val1, const std::string& val2);
-  std::string divDouble(const std::string& val1, const std::string& val2);
+  void createBranch(const std::string& dest) {
+    text += getIndent() + "br label %" + dest + "\n";
+  }
 
-  std::string remI32(const std::string& val1, const std::string& val2);
+  void createLabel(const std::string& label) { text += label + ":\n"; }
+
+  std::string getIfThenLabel() {
+    return getNumberedLabel("if.then", ifThenNumber);
+  }
+
+  std::string getIfEndLabel() {
+    return getNumberedLabel("if.end", ifEndNumber);
+  }
+
+  std::string getIfElseLabel() {
+    return getNumberedLabel("if.else", ifElseNumber);
+  }
+
+  std::string getWhileCondLabel() {
+    return getNumberedLabel("while.cond", whileCondNumber);
+  }
+
+  std::string getWhileBodyLabel() {
+    return getNumberedLabel("while.body", whileBodyNumber);
+  }
+
+  std::string getWhileEndLabel() {
+    return getNumberedLabel("while.end", whileEndNumber);
+  }
 
   std::string castI32ToDouble(const std::string& id);
   std::string castDoubleToI32(const std::string& id);
+  std::string castBoolToI32(const std::string& id);
+  std::string truncateI8ToI1(const std::string& val);
+  std::string castI1toI8(const std::string& val);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);
 
   std::string emitCode(const std::string& source_filename);
 
+  static std::string getZeroLiteral(Type type);
+
  private:
-  std::string getRegStr() { return "%" + std::to_string(reg); }
+  std::string getRegStr() const { return "%" + std::to_string(reg); }
 
   std::string getPrintfFormatStrings() {
     std::string formatInt =
@@ -55,6 +134,12 @@ class LLVMGenerator {
   std::string getCStdLibDeclarations() {
     std::string declarePrintf = "declare i32 @printf(ptr, ...)";
     return declarePrintf + "\n";
+  }
+
+  std::string getNumberedLabel(const char* label, int& num) {
+    auto suffix = num == 0 ? "" : std::to_string(num);
+    ++num;
+    return label + suffix;
   }
 };
 }  // namespace lexy2
