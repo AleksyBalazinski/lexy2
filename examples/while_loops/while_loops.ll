@@ -7,49 +7,50 @@ target triple = "x86_64-w64-windows-gnu"
 declare i32 @printf(ptr, ...)
 
 define dso_local i32 @main() #0 {
+entry:
   %i = alloca i32
   store i32 0, i32* %i
   br label %while.cond
 while.cond:
-  %1 = load i32, i32* %i
-  %2 = icmp sle i32 %1, 10
-  br i1 %2, label %while.body, label %while.end
+  %0 = load i32, i32* %i
+  %1 = icmp sle i32 %0, 10
+  br i1 %1, label %while.body, label %while.end
 while.body:
-  %3 = load i32, i32* %i
-  %4 = srem i32 %3, 15
-  %5 = icmp eq i32 %4, 0
-  br i1 %5, label %if.then, label %if.else
+  %2 = load i32, i32* %i
+  %3 = srem i32 %2, 15
+  %4 = icmp eq i32 %3, 0
+  br i1 %4, label %if.then, label %if.else
 if.then:
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef 150)
   br label %if.end
 if.else:
-  %7 = load i32, i32* %i
-  %8 = srem i32 %7, 5
-  %9 = icmp eq i32 %8, 0
-  br i1 %9, label %if.then1, label %if.else1
+  %6 = load i32, i32* %i
+  %7 = srem i32 %6, 5
+  %8 = icmp eq i32 %7, 0
+  br i1 %8, label %if.then1, label %if.else1
 if.then1:
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef 500)
   br label %if.end1
 if.else1:
-  %11 = load i32, i32* %i
-  %12 = srem i32 %11, 3
-  %13 = icmp eq i32 %12, 0
-  br i1 %13, label %if.then2, label %if.else2
+  %10 = load i32, i32* %i
+  %11 = srem i32 %10, 3
+  %12 = icmp eq i32 %11, 0
+  br i1 %12, label %if.then2, label %if.else2
 if.then2:
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef 300)
   br label %if.end2
 if.else2:
-  %15 = load i32, i32* %i
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %15)
+  %14 = load i32, i32* %i
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %14)
   br label %if.end2
 if.end2:
   br label %if.end1
 if.end1:
   br label %if.end
 if.end:
-  %17 = load i32, i32* %i
-  %18 = add i32 %17, 1
-  store i32 %18, i32* %i
+  %16 = load i32, i32* %i
+  %17 = add i32 %16, 1
+  store i32 %17, i32* %i
   br label %while.cond
 while.end:
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef 10000)
@@ -59,31 +60,31 @@ while.end:
   store i32 5, i32* %limit
   br label %while.cond1
 while.cond1:
-  %20 = load i32, i32* %j
-  %21 = load i32, i32* %limit
-  %22 = icmp sle i32 %20, %21
-  br i1 %22, label %while.body1, label %while.end1
+  %19 = load i32, i32* %j
+  %20 = load i32, i32* %limit
+  %21 = icmp sle i32 %19, %20
+  br i1 %21, label %while.body1, label %while.end1
 while.body1:
-  %23 = load i32, i32* %j
+  %22 = load i32, i32* %j
   %k.2 = alloca i32
-  store i32 %23, i32* %k.2
+  store i32 %22, i32* %k.2
   br label %while.cond2
 while.cond2:
-  %24 = load i32, i32* %k.2
-  %25 = load i32, i32* %limit
-  %26 = icmp sle i32 %24, %25
-  br i1 %26, label %while.body2, label %while.end2
+  %23 = load i32, i32* %k.2
+  %24 = load i32, i32* %limit
+  %25 = icmp sle i32 %23, %24
+  br i1 %25, label %while.body2, label %while.end2
 while.body2:
-  %27 = load i32, i32* %k.2
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %27)
-  %29 = load i32, i32* %k.2
-  %30 = add i32 %29, 1
-  store i32 %30, i32* %k.2
+  %26 = load i32, i32* %k.2
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %26)
+  %28 = load i32, i32* %k.2
+  %29 = add i32 %28, 1
+  store i32 %29, i32* %k.2
   br label %while.cond2
 while.end2:
-  %31 = load i32, i32* %j
-  %32 = add i32 %31, 1
-  store i32 %32, i32* %j
+  %30 = load i32, i32* %j
+  %31 = add i32 %30, 1
+  store i32 %31, i32* %j
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef 10000)
   br label %while.cond1
 while.end1:

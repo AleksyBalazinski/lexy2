@@ -19,6 +19,9 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
+  std::stack<int>
+      distFromAndStack;  // keeps record of the distance to the closest 'and' node
+  std::stack<std::string> srcPointStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
   const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
@@ -80,7 +83,14 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitAssign(Lexy2Parser::AssignContext* ctx) override;
 
-  void exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) override {}
+  void enterLogicalAndLhs(Lexy2Parser::LogicalAndLhsContext* ctx) override;
+  void exitLogicalAndLhs(Lexy2Parser::LogicalAndLhsContext* ctx) override;
+
+  void enterLogicalAndRhs(Lexy2Parser::LogicalAndRhsContext* ctx) override;
+  void exitLogicalAndRhs(Lexy2Parser::LogicalAndRhsContext* ctx) override;
+
+  void enterLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) override;
+  void exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) override;
 
   void exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) override {}
 

@@ -26,9 +26,13 @@ logicalOrExpr:
 	logicalAndExpr						# fwd07
 	| logicalOrExpr '||' logicalAndExpr	# logicalOr;
 
+logicalAndLhs: equalityExpr;
+
+logicalAndRhs: equalityExpr;
+
 logicalAndExpr:
-	equalityExpr										# fwd10
-	| left = logicalAndExpr '&&' right = equalityExpr	# LogicalAnd;
+	logicalAndLhs										# fwd10
+	| left = logicalAndExpr '&&' right = logicalAndRhs	# LogicalAnd;
 
 equalityExpr:
 	relationalExpr													# fwd20

@@ -1,0 +1,20 @@
+let q = 12;
+let z = 21;
+if (q * 2 + (q - 4)) * ((q - 3) / 3) - 95 == 1 && ((z / 3) - (3 + 4)) * 100 == 0 {
+    __print 1;
+}
+
+let myBool = (q == 3 * 4) && (7 * 3 == z) && true;
+__print myBool;
+
+__print 1000;
+let x = 100;
+let y = 15;
+let a = 3;
+while x > 0 && y > 0 && a != 150 {
+    __print x;
+    x -= 1;
+    y -= 2;
+}
+
+__print true && true && false && true && true;

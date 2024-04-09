@@ -7,43 +7,44 @@ target triple = "x86_64-w64-windows-gnu"
 declare i32 @printf(ptr, ...)
 
 define dso_local i32 @main() #0 {
-  %1 = add i32 3, 5
-  %2 = sub i32 0, 2
-  %3 = mul i32 %1, %2
-  %4 = sitofp i32 %3 to double
-  %5 = fdiv double %4, 2.15
-  %6 = sub i32 0, 2
-  %7 = sitofp i32 %6 to double
-  %8 = fmul double %7, 3.143
-  %9 = fmul double 345.0e-3, %8
-  %10 = fadd double %5, %9
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %10)
-  %12 = sitofp i32 8 to double
-  %13 = fmul double 3.14, %12
-  %14 = fptosi double %13 to i32
-  %15 = sitofp i32 2 to double
-  %16 = sitofp i32 %14 to double
-  %17 = fmul double %16, %15
-  %18 = fdiv double %17, 3.0
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %18)
-  %20 = sitofp i32 3 to double
-  %21 = fadd double %20, 3.0
-  %22 = fsub double 0.0, 1.12
-  %23 = sitofp i32 45 to double
-  %24 = fmul double %23, %22
-  %25 = fadd double %21, %24
-  %26 = fmul double 12.5, %25
-  %27 = sitofp i32 128 to double
-  %28 = fdiv double %27, 3.0
-  %29 = sub i32 0, 45
-  %30 = mul i32 %29, 23
-  %31 = sitofp i32 %30 to double
-  %32 = fadd double %31, 12.123
-  %33 = fmul double %32, 1.0e-3
-  %34 = sitofp i32 125 to double
-  %35 = fadd double %34, %33
-  %36 = fmul double %28, %35
-  %37 = fadd double %26, %36
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %37)
+entry:
+  %0 = add i32 3, 5
+  %1 = sub i32 0, 2
+  %2 = mul i32 %0, %1
+  %3 = sitofp i32 %2 to double
+  %4 = fdiv double %3, 2.15
+  %5 = sub i32 0, 2
+  %6 = sitofp i32 %5 to double
+  %7 = fmul double %6, 3.143
+  %8 = fmul double 345.0e-3, %7
+  %9 = fadd double %4, %8
+  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %9)
+  %11 = sitofp i32 8 to double
+  %12 = fmul double 3.14, %11
+  %13 = fptosi double %12 to i32
+  %14 = sitofp i32 2 to double
+  %15 = sitofp i32 %13 to double
+  %16 = fmul double %15, %14
+  %17 = fdiv double %16, 3.0
+  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %17)
+  %19 = sitofp i32 3 to double
+  %20 = fadd double %19, 3.0
+  %21 = fsub double 0.0, 1.12
+  %22 = sitofp i32 45 to double
+  %23 = fmul double %22, %21
+  %24 = fadd double %20, %23
+  %25 = fmul double 12.5, %24
+  %26 = sitofp i32 128 to double
+  %27 = fdiv double %26, 3.0
+  %28 = sub i32 0, 45
+  %29 = mul i32 %28, 23
+  %30 = sitofp i32 %29 to double
+  %31 = fadd double %30, 12.123
+  %32 = fmul double %31, 1.0e-3
+  %33 = sitofp i32 125 to double
+  %34 = fadd double %33, %32
+  %35 = fmul double %27, %34
+  %36 = fadd double %25, %35
+  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %36)
   ret i32 0
 }

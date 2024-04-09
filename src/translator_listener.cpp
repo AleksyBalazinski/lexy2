@@ -113,6 +113,10 @@ void TranslatorListener::exitCondition(Lexy2Parser::ConditionContext* ctx) {
     inErrorMode = true;
     return;
   }
+
+  if (cond.category == Value::Category::MEMORY) {
+    cond = load(cond);
+  }
   auto [endOrElseLabel, thenLabel] = utils::peekTwo(basicBlockStack);
   generator.createBranch(cond.name, thenLabel, endOrElseLabel);
 }
@@ -231,6 +235,10 @@ void TranslatorListener::exitWhileLoopCondition(
     inErrorMode = true;
     return;
   }
+
+  if (cond.category == Value::Category::MEMORY) {
+    cond = load(cond);
+  }
   auto [endLabel, bodyLabel] = utils::peekTwo(basicBlockStack);
   generator.createBranch(cond.name, bodyLabel, endLabel);
 }
@@ -326,6 +334,136 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
                                value.name);
   }
   valueStack.push(value);
+}
+
+void TranslatorListener::enterLogicalAndLhs(
+    Lexy2Parser::LogicalAndLhsContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  if (!distFromAndStack.empty()) {
+    ++distFromAndStack.top();
+  }
+}
+
+void TranslatorListener::exitLogicalAndLhs(
+    Lexy2Parser::LogicalAndLhsContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  if (distFromAndStack.empty() || distFromAndStack.top() != 1) {
+    if (!distFromAndStack.empty()) {
+      --distFromAndStack.top();
+    }
+    return;  // this is not a child of an and node, skip
+  }
+
+  auto [endLabel, rhsLabel] = utils::peekTwo(basicBlockStack);
+  auto lhsVal = valueStack.top();
+  valueStack.pop();
+  if (lhsVal.typeID != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Left operand of '&&' must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+  if (lhsVal.category == Value::Category::MEMORY) {
+    lhsVal = load(lhsVal);
+  }
+  generator.createBranch(lhsVal.name, rhsLabel, endLabel);
+  if (!distFromAndStack.empty()) {
+    --distFromAndStack.top();
+  }
+}
+
+void TranslatorListener::enterLogicalAndRhs(
+    Lexy2Parser::LogicalAndRhsContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  if (!distFromAndStack.empty()) {
+    ++distFromAndStack.top();
+  }
+
+  returnPointsStack.push(generator.getCurrentBasicBlock());
+
+  auto rhsLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(rhsLabel);
+  returnPointsStack.push(rhsLabel);
+}
+
+void TranslatorListener::exitLogicalAndRhs(
+    Lexy2Parser::LogicalAndRhsContext* ctx) {
+  if (!distFromAndStack.empty()) {
+    --distFromAndStack.top();
+  }
+
+  // do the loading now, so that we don't have to do it in the parent node
+  auto val = valueStack.top();
+  valueStack.pop();
+  if (val.typeID != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Right operand of '&&' must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+  if (val.category == Value::Category::MEMORY) {
+    val = load(val);
+  }
+  valueStack.push(val);
+
+  generator.createBranch(basicBlockStack.top());
+}
+
+void TranslatorListener::enterLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  if (!distFromAndStack.empty()) {
+    ++distFromAndStack.top();
+  }
+
+  auto andEnd = generator.getAndEndLabel();
+  basicBlockStack.push(andEnd);
+  basicBlockStack.push(generator.getAndRhsLabel());
+  distFromAndStack.push(0);
+}
+
+void TranslatorListener::exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  distFromAndStack.pop();
+  auto endLabel = basicBlockStack.top();
+  basicBlockStack.pop();
+  generator.createLabel(endLabel);
+
+  auto rhsLabel = returnPointsStack.top();
+  returnPointsStack.pop();
+  auto entryLabel = returnPointsStack.top();
+  returnPointsStack.pop();
+
+  auto val = valueStack.top();
+  valueStack.pop();
+
+  auto res = generator.createPhi({std::make_pair("false", entryLabel),
+                                  std::make_pair(val.name, rhsLabel)});
+
+  valueStack.push(Value(res, BOOL_TYPE_ID));
+
+  if (!distFromAndStack.empty() && distFromAndStack.top() == 1) {
+    // this is a left child of an and node;
+    // do the same stuff as in the exitLogicalAndLhs
+    auto [end, rhs] = utils::peekTwo(basicBlockStack);
+    auto val = valueStack.top();
+    valueStack.pop();
+    generator.createBranch(val.name, rhs, end);
+  }
+
+  if (!distFromAndStack.empty()) {
+    --distFromAndStack.top();
+  }
 }
 
 void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {

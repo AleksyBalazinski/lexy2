@@ -14,7 +14,8 @@ class LLVMGenerator {
 
  private:
   std::string text;
-  int reg = 1;
+  int reg = 0;
+  std::string currentBasicBlock;
 
   int ifEndNumber = 0;
   int ifElseNumber = 0;
@@ -23,6 +24,9 @@ class LLVMGenerator {
   int whileCondNumber = 0;
   int whileBodyNumber = 0;
   int whileEndNumber = 0;
+
+  int andRhsNumber = 0;
+  int andEndNumber = 0;
 
   static std::string getTypeString(Type type);
   static std::string getOpPrefix(Type type, BinOpName op);
@@ -33,6 +37,7 @@ class LLVMGenerator {
   static std::string getIndent() { return "  "; }
 
  public:
+  LLVMGenerator() { createLabel("entry"); }
   std::string createBinOp(BinOpName op, Type type, const std::string& arg1,
                           const std::string& arg2) {
     const auto regStr = getRegStr();
@@ -81,7 +86,16 @@ class LLVMGenerator {
     text += getIndent() + "br label %" + dest + "\n";
   }
 
-  void createLabel(const std::string& label) { text += label + ":\n"; }
+  void createLabel(const std::string& label) {
+    text += label + ":\n";
+    currentBasicBlock = label;
+  }
+
+  std::string getCurrentBasicBlock() const { return currentBasicBlock; }
+
+  std::string createPhi(
+      std::initializer_list<std::pair<std::string, std::string>>
+          valueLabelPairs);
 
   std::string getIfThenLabel() {
     return getNumberedLabel("if.then", ifThenNumber);
@@ -105,6 +119,14 @@ class LLVMGenerator {
 
   std::string getWhileEndLabel() {
     return getNumberedLabel("while.end", whileEndNumber);
+  }
+
+  std::string getAndRhsLabel() {
+    return getNumberedLabel("and.rhs", andRhsNumber);
+  }
+
+  std::string getAndEndLabel() {
+    return getNumberedLabel("and.end", andEndNumber);
   }
 
   std::string castI32ToDouble(const std::string& id);

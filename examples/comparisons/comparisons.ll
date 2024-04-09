@@ -7,73 +7,74 @@ target triple = "x86_64-w64-windows-gnu"
 declare i32 @printf(ptr, ...)
 
 define dso_local i32 @main() #0 {
+entry:
   %x = alloca i32
   store i32 3, i32* %x
   %y = alloca i32
   store i32 5, i32* %y
-  %1 = load i32, i32* %x
-  %2 = load i32, i32* %y
-  %3 = icmp slt i32 %1, %2
-  %4 = zext i1 %3 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %4)
-  %6 = load i32, i32* %x
-  %7 = load i32, i32* %y
-  %8 = icmp sgt i32 %6, %7
-  %9 = zext i1 %8 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %9)
-  %11 = load i32, i32* %x
-  %12 = load i32, i32* %y
-  %13 = icmp sle i32 %11, %12
-  %14 = zext i1 %13 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %14)
-  %16 = load i32, i32* %x
-  %17 = load i32, i32* %y
-  %18 = icmp sge i32 %16, %17
-  %19 = zext i1 %18 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %19)
-  %21 = load i32, i32* %x
-  %22 = load i32, i32* %y
-  %23 = icmp eq i32 %21, %22
-  %24 = zext i1 %23 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %24)
-  %26 = load i32, i32* %x
-  %27 = load i32, i32* %y
-  %28 = icmp ne i32 %26, %27
-  %29 = zext i1 %28 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %29)
+  %0 = load i32, i32* %x
+  %1 = load i32, i32* %y
+  %2 = icmp slt i32 %0, %1
+  %3 = zext i1 %2 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %3)
+  %5 = load i32, i32* %x
+  %6 = load i32, i32* %y
+  %7 = icmp sgt i32 %5, %6
+  %8 = zext i1 %7 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %8)
+  %10 = load i32, i32* %x
+  %11 = load i32, i32* %y
+  %12 = icmp sle i32 %10, %11
+  %13 = zext i1 %12 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %13)
+  %15 = load i32, i32* %x
+  %16 = load i32, i32* %y
+  %17 = icmp sge i32 %15, %16
+  %18 = zext i1 %17 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %18)
+  %20 = load i32, i32* %x
+  %21 = load i32, i32* %y
+  %22 = icmp eq i32 %20, %21
+  %23 = zext i1 %22 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %23)
+  %25 = load i32, i32* %x
+  %26 = load i32, i32* %y
+  %27 = icmp ne i32 %25, %26
+  %28 = zext i1 %27 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %28)
   %a = alloca double
   store double 3.14, double* %a
   %b = alloca double
   store double 2.71, double* %b
-  %31 = load double, double* %a
-  %32 = load double, double* %b
-  %33 = fcmp olt double %31, %32
-  %34 = zext i1 %33 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %34)
-  %36 = load double, double* %a
-  %37 = load double, double* %b
-  %38 = fcmp ogt double %36, %37
-  %39 = zext i1 %38 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %39)
-  %41 = load double, double* %a
-  %42 = load double, double* %b
-  %43 = fcmp ole double %41, %42
-  %44 = zext i1 %43 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %44)
-  %46 = load double, double* %a
-  %47 = load double, double* %b
-  %48 = fcmp oge double %46, %47
-  %49 = zext i1 %48 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %49)
-  %51 = load double, double* %a
-  %52 = load double, double* %b
-  %53 = fcmp oeq double %51, %52
-  %54 = zext i1 %53 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %54)
-  %56 = load double, double* %a
-  %57 = load double, double* %b
-  %58 = fcmp one double %56, %57
-  %59 = zext i1 %58 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %59)
+  %30 = load double, double* %a
+  %31 = load double, double* %b
+  %32 = fcmp olt double %30, %31
+  %33 = zext i1 %32 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %33)
+  %35 = load double, double* %a
+  %36 = load double, double* %b
+  %37 = fcmp ogt double %35, %36
+  %38 = zext i1 %37 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %38)
+  %40 = load double, double* %a
+  %41 = load double, double* %b
+  %42 = fcmp ole double %40, %41
+  %43 = zext i1 %42 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %43)
+  %45 = load double, double* %a
+  %46 = load double, double* %b
+  %47 = fcmp oge double %45, %46
+  %48 = zext i1 %47 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %48)
+  %50 = load double, double* %a
+  %51 = load double, double* %b
+  %52 = fcmp oeq double %50, %51
+  %53 = zext i1 %52 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %53)
+  %55 = load double, double* %a
+  %56 = load double, double* %b
+  %57 = fcmp one double %55, %56
+  %58 = zext i1 %57 to i32
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %58)
   ret i32 0
 }

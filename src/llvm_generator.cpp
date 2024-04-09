@@ -102,6 +102,24 @@ std::string LLVMGenerator::getRelNamePrefix(RelName relName, Type type) {
   throw std::runtime_error("Not implemented");
 }
 
+std::string LLVMGenerator::createPhi(
+    std::initializer_list<std::pair<std::string, std::string>>
+        valueLabelPairs) {
+  auto regStr = getRegStr();
+  std::string phiText;
+  phiText += getIndent() + regStr + " = phi i1 ";
+  for (const auto& p : valueLabelPairs) {
+    phiText += "[" + p.first + ", %" + p.second + "], ";
+  }
+  // remove trailing space and comma
+  phiText.pop_back();
+  phiText.pop_back();
+  text += phiText + "\n";
+
+  reg++;
+  return regStr;
+}
+
 std::string LLVMGenerator::castI32ToDouble(const std::string& id) {
   const auto regStr = getRegStr();
   text += getIndent() + regStr + " = sitofp i32 " + id + " to double\n";
