@@ -103,8 +103,7 @@ std::string LLVMGenerator::getRelNamePrefix(RelName relName, Type type) {
 }
 
 std::string LLVMGenerator::createPhi(
-    std::initializer_list<std::pair<std::string, std::string>>
-        valueLabelPairs) {
+    std::vector<std::pair<std::string, std::string>> valueLabelPairs) {
   auto regStr = getRegStr();
   std::string phiText;
   phiText += getIndent() + regStr + " = phi i1 ";

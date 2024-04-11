@@ -21,7 +21,8 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<std::string> returnPointsStack;
   std::stack<int>
       distFromAndStack;  // keeps record of the distance to the closest 'and' node
-  std::stack<std::string> srcPointStack;
+  std::stack<std::string> immediateRetsFromAndStack;
+  std::stack<std::vector<std::string>> skippedLabels;
   SymbolTable symbolTable;
   LLVMGenerator generator;
   const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);

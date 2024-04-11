@@ -42,7 +42,7 @@ if.end:
   %19 = mul i32 3, 4
   %20 = load i32, i32* %q
   %21 = icmp eq i32 %20, %19
-  br i1 %21, label %and.rhs2, label %and.end2
+  br i1 %21, label %and.rhs2, label %and.end1
 and.rhs2:
   %22 = mul i32 7, 3
   %23 = load i32, i32* %z
@@ -54,7 +54,7 @@ and.end2:
 and.rhs1:
   br label %and.end1
 and.end1:
-  %26 = phi i1 [false, %and.end2], [true, %and.rhs1]
+  %26 = phi i1 [false, %if.end], [false, %and.end2], [true, %and.rhs1]
   %27 = zext i1 %26 to i8
   %myBool = alloca i8
   store i8 %27, i8* %myBool
@@ -73,7 +73,7 @@ and.end1:
 while.cond:
   %33 = load i32, i32* %x
   %34 = icmp sgt i32 %33, 0
-  br i1 %34, label %and.rhs4, label %and.end4
+  br i1 %34, label %and.rhs4, label %and.end3
 and.rhs4:
   %35 = load i32, i32* %y
   %36 = icmp sgt i32 %35, 0
@@ -86,7 +86,7 @@ and.rhs3:
   %39 = icmp ne i32 %38, 150
   br label %and.end3
 and.end3:
-  %40 = phi i1 [false, %and.end4], [%39, %and.rhs3]
+  %40 = phi i1 [false, %while.cond], [false, %and.end4], [%39, %and.rhs3]
   br i1 %40, label %while.body, label %while.end
 while.body:
   %41 = load i32, i32* %x
@@ -99,17 +99,17 @@ while.body:
   store i32 %46, i32* %y
   br label %while.cond
 while.end:
-  br i1 true, label %and.rhs8, label %and.end8
+  br i1 true, label %and.rhs8, label %and.end5
 and.rhs8:
   br label %and.end8
 and.end8:
   %47 = phi i1 [false, %while.end], [true, %and.rhs8]
-  br i1 %47, label %and.rhs7, label %and.end7
+  br i1 %47, label %and.rhs7, label %and.end5
 and.rhs7:
   br label %and.end7
 and.end7:
   %48 = phi i1 [false, %and.end8], [false, %and.rhs7]
-  br i1 %48, label %and.rhs6, label %and.end6
+  br i1 %48, label %and.rhs6, label %and.end5
 and.rhs6:
   br label %and.end6
 and.end6:
@@ -118,7 +118,7 @@ and.end6:
 and.rhs5:
   br label %and.end5
 and.end5:
-  %50 = phi i1 [false, %and.end6], [true, %and.rhs5]
+  %50 = phi i1 [false, %while.end], [false, %and.end8], [false, %and.end7], [false, %and.end6], [true, %and.rhs5]
   %51 = zext i1 %50 to i32
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %51)
   ret i32 0

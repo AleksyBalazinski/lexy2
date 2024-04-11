@@ -3,6 +3,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace lexy2 {
 
@@ -94,8 +95,7 @@ class LLVMGenerator {
   std::string getCurrentBasicBlock() const { return currentBasicBlock; }
 
   std::string createPhi(
-      std::initializer_list<std::pair<std::string, std::string>>
-          valueLabelPairs);
+      std::vector<std::pair<std::string, std::string>> valueLabelPairs);
 
   std::string getIfThenLabel() {
     return getNumberedLabel("if.then", ifThenNumber);

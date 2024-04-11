@@ -1,4 +1,5 @@
 #include "translator_listener.hpp"
+#include <algorithm>
 #include <tuple>
 
 namespace lexy2 {
@@ -358,7 +359,7 @@ void TranslatorListener::exitLogicalAndLhs(
     return;  // this is not a child of an and node, skip
   }
 
-  auto [endLabel, rhsLabel] = utils::peekTwo(basicBlockStack);
+  auto rhsLabel = basicBlockStack.top();
   auto lhsVal = valueStack.top();
   valueStack.pop();
   if (lhsVal.typeID != BOOL_TYPE_ID) {
@@ -370,7 +371,8 @@ void TranslatorListener::exitLogicalAndLhs(
   if (lhsVal.category == Value::Category::MEMORY) {
     lhsVal = load(lhsVal);
   }
-  generator.createBranch(lhsVal.name, rhsLabel, endLabel);
+  generator.createBranch(lhsVal.name, rhsLabel,
+                         immediateRetsFromAndStack.top());
   if (!distFromAndStack.empty()) {
     --distFromAndStack.top();
   }
@@ -395,6 +397,9 @@ void TranslatorListener::enterLogicalAndRhs(
 
 void TranslatorListener::exitLogicalAndRhs(
     Lexy2Parser::LogicalAndRhsContext* ctx) {
+  if (inErrorMode)
+    return;
+
   if (!distFromAndStack.empty()) {
     --distFromAndStack.top();
   }
@@ -427,7 +432,23 @@ void TranslatorListener::enterLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
   auto andEnd = generator.getAndEndLabel();
   basicBlockStack.push(andEnd);
   basicBlockStack.push(generator.getAndRhsLabel());
+  if (distFromAndStack.empty() || distFromAndStack.top() > 1) {
+    immediateRetsFromAndStack.push(andEnd);
+    skippedLabels.push({});
+  }
   distFromAndStack.push(0);
+}
+
+std::vector<std::pair<std::string, std::string>> createPairs(
+    const std::vector<std::string>& labels, const std::string& value) {
+  std::vector<std::pair<std::string, std::string>> result;
+  result.reserve(labels.size());
+
+  std::transform(
+      labels.begin(), labels.end(), std::back_inserter(result),
+      [&value](std::string label) { return std::make_pair(value, label); });
+
+  return result;
 }
 
 void TranslatorListener::exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
@@ -447,18 +468,27 @@ void TranslatorListener::exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
   auto val = valueStack.top();
   valueStack.pop();
 
-  auto res = generator.createPhi({std::make_pair("false", entryLabel),
-                                  std::make_pair(val.name, rhsLabel)});
-
-  valueStack.push(Value(res, BOOL_TYPE_ID));
+  skippedLabels.top().push_back(entryLabel);
 
   if (!distFromAndStack.empty() && distFromAndStack.top() == 1) {
+    auto res = generator.createPhi({std::make_pair("false", entryLabel),
+                                    std::make_pair(val.name, rhsLabel)});
+    valueStack.push(Value(res, BOOL_TYPE_ID));
     // this is a left child of an and node;
     // do the same stuff as in the exitLogicalAndLhs
-    auto [end, rhs] = utils::peekTwo(basicBlockStack);
+    auto rhs = basicBlockStack.top();
     auto val = valueStack.top();
     valueStack.pop();
-    generator.createBranch(val.name, rhs, end);
+    generator.createBranch(val.name, rhs, immediateRetsFromAndStack.top());
+  } else {
+    immediateRetsFromAndStack.pop();
+    auto skipped = skippedLabels.top();
+    skippedLabels.pop();
+
+    auto valueLabelPairs = createPairs(skipped, "false");
+    valueLabelPairs.push_back(std::make_pair(val.name, rhsLabel));
+    auto res = generator.createPhi(valueLabelPairs);
+    valueStack.push(Value(res, BOOL_TYPE_ID));
   }
 
   if (!distFromAndStack.empty()) {
