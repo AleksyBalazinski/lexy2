@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -8,7 +9,7 @@ namespace lexy2 {
 
 class LLVMGenerator {
  public:
-  enum class Type { I32, I8, DOUBLE, I1 };
+  enum class Type { I32, I8, DOUBLE, I1, FLOAT };
   enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP };
   enum class RelName { EQ, NE, GE, LE, GT, LT };
 
@@ -108,10 +109,14 @@ class LLVMGenerator {
   }
 
   std::string castI32ToDouble(const std::string& id);
+  std::string castI32ToFloat(const std::string& id);
   std::string castDoubleToI32(const std::string& id);
   std::string castBoolToI32(const std::string& id);
   std::string truncateI8ToI1(const std::string& val);
   std::string castI1toI8(const std::string& val);
+  std::string truncateDoubleToFloat(const std::string& val);
+  std::string castFloatToI32(const std::string& val);
+  std::string extendFloatToDouble(const std::string& val);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);
@@ -119,6 +124,8 @@ class LLVMGenerator {
   std::string emitCode(const std::string& source_filename);
 
   static std::string getZeroLiteral(Type type);
+  static bool supportsLiteralTranslation(Type from, Type to);
+  static std::string getLiteral(Type from, Type to, const std::string& literal);
 
  private:
   std::string getRegStr() const { return "%" + std::to_string(reg); }

@@ -47,16 +47,50 @@ Value TranslatorListener::castRegister(const Value& value, int targetType) {
   if (value.typeID == targetType) {
     return value;  // do nothing
   }
+
+  if (value.category == Value::Category::CONSTANT) {
+    auto llvmFrom = toLLVMType(static_cast<PrimitiveType>(value.typeID));
+    auto llvmTo = toLLVMType(static_cast<PrimitiveType>(targetType));
+    if (generator.supportsLiteralTranslation(llvmFrom, llvmTo)) {
+      auto str = generator.getLiteral(llvmFrom, llvmTo, value.name);
+      return Value(str, targetType, Value::Category::CONSTANT);
+    }
+  }
+
   if (value.typeID == INT_TYPE_ID) {
     if (targetType == DOUBLE_TYPE_ID) {
       auto regStr = generator.castI32ToDouble(value.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
   }
+  if (value.typeID == INT_TYPE_ID) {
+    if (targetType == FLOAT_TYPE_ID) {
+      auto regStr = generator.castI32ToFloat(value.name);
+      return Value(regStr, FLOAT_TYPE_ID);
+    }
+  }
   if (value.typeID == DOUBLE_TYPE_ID) {
     if (targetType == INT_TYPE_ID) {
       auto regStr = generator.castDoubleToI32(value.name);
       return Value(regStr, INT_TYPE_ID);
+    }
+  }
+  if (value.typeID == DOUBLE_TYPE_ID) {
+    if (targetType == FLOAT_TYPE_ID) {
+      auto regStr = generator.truncateDoubleToFloat(value.name);
+      return Value(regStr, FLOAT_TYPE_ID);
+    }
+  }
+  if (value.typeID == FLOAT_TYPE_ID) {
+    if (targetType == INT_TYPE_ID) {
+      auto regStr = generator.castFloatToI32(value.name);
+      return Value(regStr, INT_TYPE_ID);
+    }
+  }
+  if (value.typeID == FLOAT_TYPE_ID) {
+    if (targetType == DOUBLE_TYPE_ID) {
+      auto regStr = generator.extendFloatToDouble(value.name);
+      return Value(regStr, DOUBLE_TYPE_ID);
     }
   }
   if (value.typeID == BOOL_TYPE_ID) {
@@ -97,6 +131,10 @@ Value TranslatorListener::load(const Value& val) {
   if (val.typeID == BOOL_TYPE_ID) {
     auto loaded = generator.createLoad(LLVMGenerator::Type::I8, val.name);
     return Value(generator.truncateI8ToI1(loaded), BOOL_TYPE_ID);
+  }
+  if (val.typeID == FLOAT_TYPE_ID) {
+    return Value(generator.createLoad(LLVMGenerator::Type::FLOAT, val.name),
+                 FLOAT_TYPE_ID);
   }
   throw std::runtime_error("Not implemented");
 }

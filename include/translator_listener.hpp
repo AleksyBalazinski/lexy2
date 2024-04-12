@@ -24,6 +24,7 @@ class TranslatorListener : public Lexy2BaseListener {
   const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
   const int DOUBLE_TYPE_ID = static_cast<int>(PrimitiveType::DOUBLE);
   const int BOOL_TYPE_ID = static_cast<int>(PrimitiveType::BOOL);
+  const int FLOAT_TYPE_ID = static_cast<int>(PrimitiveType::FLOAT);
   std::unordered_map<std::string, int> typeIDs;
   TypeManager typeManager;
 
