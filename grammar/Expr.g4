@@ -1,6 +1,10 @@
 grammar Expr;
 
-TYPE_ID: 'double' | 'int' | 'bool'; // TODO user defined types
+TYPE_ID:
+	'double'
+	| 'int'
+	| 'bool'
+	| 'float'; // TODO user defined types
 
 INTEGER_LITERAL: [0-9]+;
 FLOAT_LITERAL:

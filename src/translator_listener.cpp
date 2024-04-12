@@ -7,6 +7,7 @@ TranslatorListener::TranslatorListener(ErrorHandler& errorHandler)
   typeIDs.insert(std::make_pair("int", INT_TYPE_ID));
   typeIDs.insert(std::make_pair("double", DOUBLE_TYPE_ID));
   typeIDs.insert(std::make_pair("bool", BOOL_TYPE_ID));
+  typeIDs.insert(std::make_pair("float", FLOAT_TYPE_ID));
 }
 
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
@@ -36,8 +37,12 @@ void TranslatorListener::exitPrintIntrinsic(
     generator.printDouble(value.name);
   }
   if (value.typeID == BOOL_TYPE_ID) {
-    const auto casted = generator.castBoolToI32(value.name);
-    generator.printI32(casted);
+    const auto cast = generator.castBoolToI32(value.name);
+    generator.printI32(cast);
+  }
+  if (value.typeID == FLOAT_TYPE_ID) {
+    auto cast = generator.extendFloatToDouble(value.name);
+    generator.printDouble(cast);
   }
 }
 
@@ -60,7 +65,8 @@ void TranslatorListener::exitDeclStatement(
     return;
   }
   if (ctx->TYPE_ID() != nullptr) {
-    initializer = castRegister(initializer, typeIDs[ctx->TYPE_ID()->getText()]);
+    auto targetTypeID = typeIDs[ctx->TYPE_ID()->getText()];
+    initializer = castRegister(initializer, targetTypeID);
   }
   const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
   LLVMGenerator::Type type;
@@ -73,6 +79,9 @@ void TranslatorListener::exitDeclStatement(
   if (initializer.typeID == BOOL_TYPE_ID) {
     initializer.name = generator.castI1toI8(initializer.name);
     type = LLVMGenerator::Type::I8;
+  }
+  if (initializer.typeID == FLOAT_TYPE_ID) {
+    type = LLVMGenerator::Type::FLOAT;
   }
   generator.createDeclaration(type, scopedIdentifier);
   generator.createAssignment(type, scopedIdentifier, initializer.name);
@@ -330,6 +339,14 @@ void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
   if (right.category == Value::Category::MEMORY) {
     right = load(right);
   }
+
+  if (left.typeID != right.typeID) {
+    if (!applyBuiltInConversions(left, right, ctx)) {
+      inErrorMode = true;
+      return;
+    }
+  }
+
   auto op = ctx->op->getText();
   if (op == "==") {
     valueStack.push(compareRegisters(left, right, Relation::EQ));
@@ -563,7 +580,8 @@ void TranslatorListener::exitIntegerLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->INTEGER_LITERAL()->getText(), INT_TYPE_ID));
+  valueStack.push(Value(ctx->INTEGER_LITERAL()->getText(), INT_TYPE_ID,
+                        Value::Category::CONSTANT));
 }
 
 void TranslatorListener::exitFloatLiteral(
@@ -571,14 +589,16 @@ void TranslatorListener::exitFloatLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->FLOAT_LITERAL()->getText(), DOUBLE_TYPE_ID));
+  valueStack.push(Value(ctx->FLOAT_LITERAL()->getText(), DOUBLE_TYPE_ID,
+                        Value::Category::CONSTANT));
 }
 
 void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), BOOL_TYPE_ID));
+  valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), BOOL_TYPE_ID,
+                        Value::Category::CONSTANT));
 }
 
 std::string TranslatorListener::getCode(const std::string& sourceFilename) {

@@ -9,6 +9,8 @@ LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType) {
       return LLVMGenerator::Type::DOUBLE;
     case PrimitiveType::BOOL:
       return LLVMGenerator::Type::I1;
+    case PrimitiveType::FLOAT:
+      return LLVMGenerator::Type::FLOAT;
     default:
       throw std::runtime_error("Not implemented");
   }

@@ -40,18 +40,17 @@ define dso_local i32 @main() #0 {
   call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %17)
   %b = alloca double
   store double 13.2, double* %b
-  %19 = sitofp i32 4 to double
-  %20 = load double, double* %b
-  %21 = fdiv double %20, %19
-  store double %21, double* %b
-  %22 = load double, double* %b
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %22)
+  %19 = load double, double* %b
+  %20 = fdiv double %19, 4.0
+  store double %20, double* %b
+  %21 = load double, double* %b
+  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %21)
   %c = alloca i32
   store i32 5, i32* %c
-  %24 = load i32, i32* %c
-  %25 = srem i32 %24, 3
-  store i32 %25, i32* %c
-  %26 = load i32, i32* %c
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %26)
+  %23 = load i32, i32* %c
+  %24 = srem i32 %23, 3
+  store i32 %24, i32* %c
+  %25 = load i32, i32* %c
+  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %25)
   ret i32 0
 }

@@ -1,4 +1,5 @@
 #include "llvm_generator.hpp"
+#include <sstream>
 #include "utils.hpp"
 
 namespace lexy2 {
@@ -10,6 +11,8 @@ std::string LLVMGenerator::getTypeString(Type type) {
       return "i8";
     case Type::DOUBLE:
       return "double";
+    case Type::FLOAT:
+      return "float";
     default:
       return "";
   }
@@ -22,6 +25,7 @@ std::string LLVMGenerator::getOpPrefix(Type type, BinOpName op) {
       case Type::I8:
         return "";
       case Type::DOUBLE:
+      case Type::FLOAT:
         return "f";
       default:
         return "";
@@ -32,6 +36,7 @@ std::string LLVMGenerator::getOpPrefix(Type type, BinOpName op) {
       case Type::I8:
         return "s";
       case Type::DOUBLE:
+      case Type::FLOAT:
         return "f";
       default:
         return "";
@@ -45,6 +50,7 @@ std::string LLVMGenerator::getRelPrefix(Type type) {
     case Type::I8:
       return "i";
     case Type::DOUBLE:
+    case Type::FLOAT:
       return "f";
     default:
       return "";
@@ -90,7 +96,7 @@ std::string LLVMGenerator::getRelName(RelName relName) {
 }
 
 std::string LLVMGenerator::getRelNamePrefix(RelName relName, Type type) {
-  if (type == Type::DOUBLE) {
+  if (type == Type::DOUBLE || type == Type::FLOAT) {
     return "o";
   }
   if (type == Type::I32) {
@@ -106,6 +112,13 @@ std::string LLVMGenerator::castI32ToDouble(const std::string& id) {
   const auto regStr = getRegStr();
   text += getIndent() + regStr + " = sitofp i32 " + id + " to double\n";
   reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::castI32ToFloat(const std::string& id) {
+  const auto regStr = getRegStr();
+  text += getIndent() + regStr + " = sitofp i32 " + id + " to float\n";
+  ++reg;
   return regStr;
 }
 
@@ -133,6 +146,27 @@ std::string LLVMGenerator::truncateI8ToI1(const std::string& val) {
 std::string LLVMGenerator::castI1toI8(const std::string& val) {
   const auto regStr = getRegStr();
   text += getIndent() + regStr + " = zext i1 " + val + " to i8\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::truncateDoubleToFloat(const std::string& val) {
+  const auto regStr = getRegStr();
+  text += getIndent() + regStr + " = fptrunc double " + val + " to float\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::castFloatToI32(const std::string& val) {
+  const auto regStr = getRegStr();
+  text += getIndent() + regStr + " = fptosi float " + val + " to i32\n";
+  reg++;
+  return regStr;
+}
+
+std::string LLVMGenerator::extendFloatToDouble(const std::string& val) {
+  const auto regStr = getRegStr();
+  text += getIndent() + regStr + " = fpext float " + val + " to double\n";
   reg++;
   return regStr;
 }
@@ -171,9 +205,42 @@ std::string LLVMGenerator::getZeroLiteral(Type type) {
     case Type::I8:
       return "0";
     case Type::DOUBLE:
+    case Type::FLOAT:
       return "0.0";
     default:
       __builtin_unreachable();
   }
+}
+
+bool LLVMGenerator::supportsLiteralTranslation(Type from, Type to) {
+  if (from == Type::I32) {
+    if (to == Type::DOUBLE || to == Type::FLOAT) {
+      return true;
+    }
+  }
+  if (from == Type::DOUBLE) {
+    if (to == Type::FLOAT) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string LLVMGenerator::getLiteral(Type from, Type to,
+                                      const std::string& literal) {
+  if (from == Type::I32) {
+    if (to == Type::DOUBLE || to == Type::FLOAT) {
+      return literal + ".0";
+    }
+  }
+  if (from == Type::DOUBLE) {
+    if (to == Type::FLOAT) {
+      std::stringstream buffer;
+      double x = std::stof(literal);
+      buffer << std::hex << *reinterpret_cast<uint64_t*>(&x);
+      return "0x" + buffer.str();
+    }
+  }
+  throw std::runtime_error("Literal translation not supported");
 }
 }  // namespace lexy2

@@ -1,0 +1,19 @@
+let pi: float = 3.142;
+let r = 2 as float;
+let area = pi * r * r;
+__print area;
+let eq = area == 12;
+let gt = area > 12;
+
+let x = 15;
+let area1 = pi * x * x;
+__print area1;
+
+let y = 12.0;
+let area2 = pi * y * y;
+__print area2;
+
+let a = 12.34;
+let b = y as float;
+
+__print -b;

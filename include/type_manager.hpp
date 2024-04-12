@@ -23,34 +23,35 @@ enum class Operator {
   EQ,
   NE
 };
-enum class PrimitiveType { INT, DOUBLE, BOOL };
+enum class PrimitiveType { INT, DOUBLE, BOOL, FLOAT };
 
 LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType);
 
 class TypeManager {
-  bool implicitConversions[3][3] = {
+  bool implicitConversions[4][4] = {
       //      to
       // ---------------
-      // int double bool
-      {false, true, false},    // int    |
-      {false, false, false},   // double |  from
-      {false, false, false}};  // bool   |
+      // int double bool float
+      {false, true, false, true},    // int    |
+      {false, false, false, false},  // double |  from
+      {false, false, false, false},  // bool   |
+      {false, true, false, false}};  // float  |
 
-  bool operatorSupport[13][3] = {
-      // int double bool
-      {true, true, false},   // add
-      {true, true, false},   // sub
-      {true, true, false},   // mul
-      {true, true, false},   // div
-      {true, false, false},  // rem
-      {true, true, false},   // neg
-      {true, true, true},    // pos
-      {true, true, false},   // lt
-      {true, true, false},   // gt
-      {true, true, false},   // le
-      {true, true, false},   // ge
-      {true, true, false},   // eq
-      {true, true, false}    // ne
+  bool operatorSupport[13][4] = {
+      // int double bool float
+      {true, true, false, true},    // add
+      {true, true, false, true},    // sub
+      {true, true, false, true},    // mul
+      {true, true, false, true},    // div
+      {true, false, false, false},  // rem
+      {true, true, false, true},    // neg
+      {true, true, true, true},     // pos
+      {true, true, false, true},    // lt
+      {true, true, false, true},    // gt
+      {true, true, false, true},    // le
+      {true, true, false, true},    // ge
+      {true, true, false, true},    // eq
+      {true, true, false, true}     // ne
   };
 
  public:
