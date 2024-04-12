@@ -37,11 +37,11 @@ void TranslatorListener::exitPrintIntrinsic(
     generator.printDouble(value.name);
   }
   if (value.typeID == BOOL_TYPE_ID) {
-    const auto cast = generator.castBoolToI32(value.name);
+    const auto cast = generator.extBoolToI32(value.name);
     generator.printI32(cast);
   }
   if (value.typeID == FLOAT_TYPE_ID) {
-    auto cast = generator.extendFloatToDouble(value.name);
+    auto cast = generator.extFloatToDouble(value.name);
     generator.printDouble(cast);
   }
 }
@@ -77,7 +77,7 @@ void TranslatorListener::exitDeclStatement(
     type = LLVMGenerator::Type::DOUBLE;
   }
   if (initializer.typeID == BOOL_TYPE_ID) {
-    initializer.name = generator.castI1toI8(initializer.name);
+    initializer.name = generator.extI1toI8(initializer.name);
     type = LLVMGenerator::Type::I8;
   }
   if (initializer.typeID == FLOAT_TYPE_ID) {
@@ -321,7 +321,7 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
                                value.name);
   }
   if (variable.typeID == BOOL_TYPE_ID) {
-    value.name = generator.castI1toI8(value.name);
+    value.name = generator.extI1toI8(value.name);
     generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
                                value.name);
   }

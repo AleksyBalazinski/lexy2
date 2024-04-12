@@ -77,7 +77,7 @@ Value TranslatorListener::castRegister(const Value& value, int targetType) {
   }
   if (value.typeID == DOUBLE_TYPE_ID) {
     if (targetType == FLOAT_TYPE_ID) {
-      auto regStr = generator.truncateDoubleToFloat(value.name);
+      auto regStr = generator.truncDoubleToFloat(value.name);
       return Value(regStr, FLOAT_TYPE_ID);
     }
   }
@@ -89,7 +89,7 @@ Value TranslatorListener::castRegister(const Value& value, int targetType) {
   }
   if (value.typeID == FLOAT_TYPE_ID) {
     if (targetType == DOUBLE_TYPE_ID) {
-      auto regStr = generator.extendFloatToDouble(value.name);
+      auto regStr = generator.extFloatToDouble(value.name);
       return Value(regStr, DOUBLE_TYPE_ID);
     }
   }

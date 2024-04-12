@@ -1,28 +1,10 @@
 #pragma once
 
-#include <array>
-#include <optional>
-#include <stdexcept>
-#include <utility>
 #include "llvm_generator.hpp"
+#include "operations.hpp"
 
 namespace lexy2 {
 
-enum class Operator {
-  ADD,
-  SUB,
-  MUL,
-  DIV,
-  REM,
-  NEG,
-  POS,
-  LT,
-  GT,
-  LE,
-  GE,
-  EQ,
-  NE
-};
 enum class PrimitiveType { INT, DOUBLE, BOOL, FLOAT };
 
 LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType);
