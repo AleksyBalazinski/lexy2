@@ -61,14 +61,16 @@ unaryExpr:
 primaryExpr:
 	literal			# fwd80
 	| '(' expr ')'	# Parens
-	| IDENTIFIER	# Idenitifer
+	| identifier	# fwd85
 	| elementAccess	# fwd90;
+
+identifier: IDENTIFIER;
 
 literal:
 	INTEGER_LITERAL	# IntegerLiteral
 	| FLOAT_LITERAL	# FloatLiteral
 	| BOOL_LITERAL	# BoolLiteral;
 
-elementAccess: IDENTIFIER elementIndex+;
+elementAccess: identifier elementIndex+;
 
 elementIndex: ('[' INTEGER_LITERAL ']');

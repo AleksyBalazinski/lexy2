@@ -601,7 +601,7 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
   }
 }
 
-void TranslatorListener::exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) {
+void TranslatorListener::exitIdentifier(Lexy2Parser::IdentifierContext* ctx) {
   if (inErrorMode)
     return;
 

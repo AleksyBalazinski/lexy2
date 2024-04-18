@@ -98,7 +98,7 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitUnary(Lexy2Parser::UnaryContext* ctx) override;
 
-  void exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) override;
+  void exitIdentifier(Lexy2Parser::IdentifierContext* ctx) override;
 
   void exitParens(Lexy2Parser::ParensContext* ctx) override {}
 
