@@ -16,16 +16,11 @@ IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
 WHITESPACE: [ \r\n\t]+ -> skip;
 COMMENT: '//' ~[\r\n]* -> skip;
 
-expr:
-	assignmentExpr				# fwd00
-	| expr ',' assignmentExpr	# Comma
-	| arrayInitializer			# fwd02;
-
-arrayInitializer: '[?]';
+expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
 
 assignmentExpr:
 	conditionalExpr																# fwd01
-	| IDENTIFIER op = ('=' | '+=' | '-=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
+	| primaryExpr op = ('=' | '+=' | '-=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
 
 conditionalExpr:
 	logicalOrExpr														# fwd05
@@ -66,9 +61,14 @@ unaryExpr:
 primaryExpr:
 	literal			# fwd80
 	| '(' expr ')'	# Parens
-	| IDENTIFIER	# Idenitifer;
+	| IDENTIFIER	# Idenitifer
+	| elementAccess	# fwd90;
 
 literal:
 	INTEGER_LITERAL	# IntegerLiteral
 	| FLOAT_LITERAL	# FloatLiteral
 	| BOOL_LITERAL	# BoolLiteral;
+
+elementAccess: IDENTIFIER elementIndex+;
+
+elementIndex: ('[' INTEGER_LITERAL ']');

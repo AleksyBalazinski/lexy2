@@ -285,7 +285,20 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   if (inErrorMode)
     return;
 
-  const auto identifier = ctx->IDENTIFIER()->getText();
+  auto value = std::move(valueStack.top());
+  valueStack.pop();
+
+  auto lhs = std::move(valueStack.top());
+  valueStack.pop();
+  if (lhs.category != Value::Category::MEMORY) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "r-value cannot be assigned to");
+    inErrorMode = true;
+    return;
+  }
+
+  auto identifier = lhs.bareName;
+
   const auto [iter, depth] = symbolTable.globalFind(identifier);
   if (iter == symbolTable.end()) {
     errorHandler.reportError(utils::getLineCol(ctx),
@@ -293,8 +306,7 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     inErrorMode = true;
     return;
   }
-  auto value = std::move(valueStack.top());
-  valueStack.pop();
+
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
   }
