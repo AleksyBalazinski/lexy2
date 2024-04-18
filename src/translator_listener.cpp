@@ -1,5 +1,6 @@
 #include "translator_listener.hpp"
 #include <tuple>
+#include "types/llvm_str_visitor.hpp"
 #include "types/type.hpp"
 
 namespace lexy2 {
@@ -32,8 +33,7 @@ void TranslatorListener::exitPrintIntrinsic(
     value = load(value);
   }
   if (value.type.isLeaf()) {
-    const types::TypeNode& type = value.type.getRoot();
-    int typeID = *type.getSimpleTypeId();
+    int typeID = *value.type.getSimpleTypeId();
     if (typeID == INT_TYPE_ID) {
       generator.printI32(value.name);
     }
@@ -69,16 +69,30 @@ void TranslatorListener::exitDeclStatement(
     inErrorMode = true;
     return;
   }
-  if (currTypeNode != nullptr && currTypeNode->isLeaf()) {
-    auto targetType = types::Type(std::move(currTypeNode));
-    initializer = castRegister(initializer, targetType);
+  if (currTypeNode != nullptr) {
+    if (currTypeNode->isLeaf()) {
+      initializer =
+          castRegister(initializer, types::Type(std::move(currTypeNode)));
+    } else {
+      auto targetType = types::Type(std::move(currTypeNode));
+      types::LLVMStrVisitor strVisitor;
+      targetType.applyVisitor(strVisitor);
+      auto typeStr = strVisitor.getStr();
+      auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
+
+      generator.createCustomDeclaration(typeStr, scopedIdentifier);
+      symbolTable.insertInCurrentScope(std::make_pair(
+          identifier,
+          Value(identifier, std::move(targetType), Value::Category::MEMORY)));
+
+      return;
+    }
   }
 
   const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
   LLVMGenerator::Type type;
   if (initializer.type.isLeaf()) {
-    const auto& rootType = initializer.type.getRoot();
-    int typeID = *rootType.getSimpleTypeId();
+    int typeID = *initializer.type.getSimpleTypeId();
     if (typeID == INT_TYPE_ID) {
       type = LLVMGenerator::Type::I32;
     }
