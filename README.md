@@ -33,7 +33,13 @@ Sidenote:
 `launch.json` for VS Code Cmake tools extension taken from [here](https://github.com/microsoft/vscode-cmake-tools/blob/main/docs/debug-launch.md#debug-using-a-launchjson-file).
 
 ## Testing
+### Functional
 ```bash
 python ./validate.py
 ```
 The script compiles and runs the `.l2` files in the `examples` directory and compares their output with corresponding `expected.txt` files.
+
+### Unit
+```bash
+ctest --test-dir build
+```

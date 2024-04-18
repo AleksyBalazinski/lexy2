@@ -25,7 +25,6 @@ class LLVMGenerator {
   int whileBodyNumber = 0;
   int whileEndNumber = 0;
 
-  static std::string getTypeString(Type type);
   static std::string getOpPrefix(Type type, BinOpName op);
   static std::string getRelPrefix(Type type);
   static std::string getOperationString(BinOpName op);
@@ -44,6 +43,8 @@ class LLVMGenerator {
                         const std::string& value);
 
   void createDeclaration(Type type, const std::string& arg);
+  void createCustomDeclaration(const std::string& typeString,
+                               const std::string& arg);
 
   std::string createLoad(Type type, const std::string& id);
 
@@ -78,6 +79,8 @@ class LLVMGenerator {
   static std::string getZeroLiteral(Type type);
   static bool supportsLiteralTranslation(Type from, Type to);
   static std::string getLiteral(Type from, Type to, const std::string& literal);
+
+  static std::string getTypeString(Type type);
 
  private:
   std::string getRegStr() const;

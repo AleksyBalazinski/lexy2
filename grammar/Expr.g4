@@ -16,7 +16,12 @@ IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
 WHITESPACE: [ \r\n\t]+ -> skip;
 COMMENT: '//' ~[\r\n]* -> skip;
 
-expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
+expr:
+	assignmentExpr				# fwd00
+	| expr ',' assignmentExpr	# Comma
+	| arrayInitializer			# fwd02;
+
+arrayInitializer: '[?]';
 
 assignmentExpr:
 	conditionalExpr																# fwd01

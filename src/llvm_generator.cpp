@@ -143,6 +143,11 @@ void LLVMGenerator::createDeclaration(Type type, const std::string& arg) {
   text += getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
 }
 
+void LLVMGenerator::createCustomDeclaration(const std::string& typeString,
+                                            const std::string& arg) {
+  text += getIndent() + "%" + arg + " = alloca " + typeString + "\n";
+}
+
 std::string LLVMGenerator::createLoad(Type type, const std::string& id) {
   const auto regStr = getRegStr();
   text += getIndent() + regStr + " = load " + getTypeString(type) + ", " +

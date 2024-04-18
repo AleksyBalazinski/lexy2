@@ -19,6 +19,7 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
+  std::unique_ptr<types::TypeNode> currTypeNode;
   SymbolTable symbolTable;
   LLVMGenerator generator;
   const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
@@ -107,6 +108,12 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) override;
 
+  void exitType(Lexy2Parser::TypeContext* ctx) override {}
+
+  void exitRankSpecifier(Lexy2Parser::RankSpecifierContext* ctx) override;
+
+  void exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) override;
+
   std::string getCode(const std::string& sourceFilename);
 
  private:
@@ -120,7 +127,7 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value modRegisters(const Value& left, const Value& right);
 
-  Value castRegister(const Value& value, int targetType);
+  Value castRegister(const Value& value, const types::Type& targetType);
 
   Value negateRegister(const Value& value);
 

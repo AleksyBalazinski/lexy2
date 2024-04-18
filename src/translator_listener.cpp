@@ -1,5 +1,6 @@
 #include "translator_listener.hpp"
 #include <tuple>
+#include "types/type.hpp"
 
 namespace lexy2 {
 TranslatorListener::TranslatorListener(ErrorHandler& errorHandler)
@@ -25,24 +26,28 @@ void TranslatorListener::exitPrintIntrinsic(
   if (inErrorMode)
     return;
 
-  auto value = valueStack.top();
+  auto value = std::move(valueStack.top());
   valueStack.pop();
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
   }
-  if (value.typeID == INT_TYPE_ID) {
-    generator.printI32(value.name);
-  }
-  if (value.typeID == DOUBLE_TYPE_ID) {
-    generator.printDouble(value.name);
-  }
-  if (value.typeID == BOOL_TYPE_ID) {
-    const auto cast = generator.extBoolToI32(value.name);
-    generator.printI32(cast);
-  }
-  if (value.typeID == FLOAT_TYPE_ID) {
-    auto cast = generator.extFloatToDouble(value.name);
-    generator.printDouble(cast);
+  if (value.type.isLeaf()) {
+    const types::TypeNode& type = value.type.getRoot();
+    int typeID = *type.getSimpleTypeId();
+    if (typeID == INT_TYPE_ID) {
+      generator.printI32(value.name);
+    }
+    if (typeID == DOUBLE_TYPE_ID) {
+      generator.printDouble(value.name);
+    }
+    if (typeID == BOOL_TYPE_ID) {
+      const auto cast = generator.extBoolToI32(value.name);
+      generator.printI32(cast);
+    }
+    if (typeID == FLOAT_TYPE_ID) {
+      auto cast = generator.extFloatToDouble(value.name);
+      generator.printDouble(cast);
+    }
   }
 }
 
@@ -52,7 +57,7 @@ void TranslatorListener::exitDeclStatement(
     return;
 
   auto identifier = ctx->IDENTIFIER()->getText();
-  auto initializer = valueStack.top();
+  auto initializer = std::move(valueStack.top());
   valueStack.pop();
   if (initializer.category == Value::Category::MEMORY) {
     initializer = load(initializer);
@@ -64,30 +69,36 @@ void TranslatorListener::exitDeclStatement(
     inErrorMode = true;
     return;
   }
-  if (ctx->TYPE_ID() != nullptr) {
-    auto targetTypeID = typeIDs[ctx->TYPE_ID()->getText()];
-    initializer = castRegister(initializer, targetTypeID);
+  if (currTypeNode != nullptr && currTypeNode->isLeaf()) {
+    auto targetType = types::Type(std::move(currTypeNode));
+    initializer = castRegister(initializer, targetType);
   }
+
   const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
   LLVMGenerator::Type type;
-  if (initializer.typeID == INT_TYPE_ID) {
-    type = LLVMGenerator::Type::I32;
+  if (initializer.type.isLeaf()) {
+    const auto& rootType = initializer.type.getRoot();
+    int typeID = *rootType.getSimpleTypeId();
+    if (typeID == INT_TYPE_ID) {
+      type = LLVMGenerator::Type::I32;
+    }
+    if (typeID == DOUBLE_TYPE_ID) {
+      type = LLVMGenerator::Type::DOUBLE;
+    }
+    if (typeID == BOOL_TYPE_ID) {
+      initializer.name = generator.extI1toI8(initializer.name);
+      type = LLVMGenerator::Type::I8;
+    }
+    if (typeID == FLOAT_TYPE_ID) {
+      type = LLVMGenerator::Type::FLOAT;
+    }
   }
-  if (initializer.typeID == DOUBLE_TYPE_ID) {
-    type = LLVMGenerator::Type::DOUBLE;
-  }
-  if (initializer.typeID == BOOL_TYPE_ID) {
-    initializer.name = generator.extI1toI8(initializer.name);
-    type = LLVMGenerator::Type::I8;
-  }
-  if (initializer.typeID == FLOAT_TYPE_ID) {
-    type = LLVMGenerator::Type::FLOAT;
-  }
+
   generator.createDeclaration(type, scopedIdentifier);
   generator.createAssignment(type, scopedIdentifier, initializer.name);
   symbolTable.insertInCurrentScope(std::make_pair(
       identifier,
-      Value(identifier, initializer.typeID, Value::Category::MEMORY)));
+      Value(identifier, std::move(initializer.type), Value::Category::MEMORY)));
 }
 
 void TranslatorListener::enterCompoundStatement(
@@ -106,9 +117,9 @@ void TranslatorListener::exitCondition(Lexy2Parser::ConditionContext* ctx) {
   if (inErrorMode)
     return;
 
-  Value cond = valueStack.top();
+  Value cond = std::move(valueStack.top());
   valueStack.pop();
-  if (cond.typeID != BOOL_TYPE_ID) {
+  if (cond.type.getRoot().getSimpleTypeId() != BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Condition must be of boolean type");
     inErrorMode = true;
@@ -224,9 +235,9 @@ void TranslatorListener::exitWhileLoopCondition(
   if (inErrorMode)
     return;
 
-  Value cond = valueStack.top();
+  Value cond = std::move(valueStack.top());
   valueStack.pop();
-  if (cond.typeID != BOOL_TYPE_ID) {
+  if (cond.type.getRoot().getSimpleTypeId() != BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Condition must be of boolean type");
     inErrorMode = true;
@@ -268,7 +279,7 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     inErrorMode = true;
     return;
   }
-  auto value = valueStack.top();
+  auto value = std::move(valueStack.top());
   valueStack.pop();
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
@@ -276,9 +287,9 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   auto variable = iter->second;
   variable.name += symbolTable.getScopeID(depth);
 
-  if (variable.typeID != value.typeID) {
-    if (typeManager.isImplicitFromTo(value.typeID, variable.typeID)) {
-      value = castRegister(value, variable.typeID);
+  if (variable.type.getSimpleTypeId() != value.type.getSimpleTypeId()) {
+    if (typeManager.isImplicitFromTo(value.type, variable.type)) {
+      value = castRegister(value, variable.type);
     } else {
       errorHandler.reportError(utils::getLineCol(ctx),
                                "No implicit conversion from ? to ?");
@@ -312,19 +323,23 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
     // do nothing
   }
   const auto scopedIdentifier = identifier + symbolTable.getScopeID(depth);
-  if (variable.typeID == DOUBLE_TYPE_ID) {
-    generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
-                               value.name);
+  if (variable.type.isLeaf()) {
+    int variableTypeID = *variable.type.getSimpleTypeId();
+    if (variableTypeID == DOUBLE_TYPE_ID) {
+      generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
+                                 value.name);
+    }
+    if (variableTypeID == INT_TYPE_ID) {
+      generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
+                                 value.name);
+    }
+    if (variableTypeID == BOOL_TYPE_ID) {
+      value.name = generator.extI1toI8(value.name);
+      generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
+                                 value.name);
+    }
   }
-  if (variable.typeID == INT_TYPE_ID) {
-    generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
-                               value.name);
-  }
-  if (variable.typeID == BOOL_TYPE_ID) {
-    value.name = generator.extI1toI8(value.name);
-    generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
-                               value.name);
-  }
+
   valueStack.push(value);
 }
 
@@ -340,7 +355,7 @@ void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
     right = load(right);
   }
 
-  if (left.typeID != right.typeID) {
+  if (left.type.getSimpleTypeId() != right.type.getSimpleTypeId()) {
     if (!applyBuiltInConversions(left, right, ctx)) {
       inErrorMode = true;
       return;
@@ -368,7 +383,7 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
     right = load(right);
   }
 
-  if (left.typeID != right.typeID) {
+  if (left.type.getSimpleTypeId() != right.type.getSimpleTypeId()) {
     if (!applyBuiltInConversions(left, right, ctx)) {
       inErrorMode = true;
       return;
@@ -377,7 +392,7 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
 
   auto op = ctx->op->getText();
   if (op == "<") {
-    if (!typeManager.isOperatorSupported(Operator::LT, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::LT, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -387,7 +402,7 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
     valueStack.push(compareRegisters(left, right, Relation::LT));
   }
   if (op == ">") {
-    if (!typeManager.isOperatorSupported(Operator::GT, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::GT, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -397,7 +412,7 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
     valueStack.push(compareRegisters(left, right, Relation::GT));
   }
   if (op == "<=") {
-    if (!typeManager.isOperatorSupported(Operator::LE, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::LE, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -407,7 +422,7 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
     valueStack.push(compareRegisters(left, right, Relation::LE));
   }
   if (op == ">=") {
-    if (!typeManager.isOperatorSupported(Operator::GE, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::GE, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -430,7 +445,7 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
     right = load(right);
   }
 
-  if (left.typeID != right.typeID) {
+  if (left.type.getSimpleTypeId() != right.type.getSimpleTypeId()) {
     if (!applyBuiltInConversions(left, right, ctx)) {
       inErrorMode = true;
       return;
@@ -439,7 +454,7 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
 
   auto op = ctx->op->getText();
   if (op == "+") {
-    if (!typeManager.isOperatorSupported(Operator::ADD, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::ADD, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -449,7 +464,7 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
     valueStack.push(addRegisters(left, right));
   }
   if (op == "-") {
-    if (!typeManager.isOperatorSupported(Operator::SUB, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::SUB, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -473,7 +488,7 @@ void TranslatorListener::exitMultiplicative(
     right = load(right);
   }
 
-  if (left.typeID != right.typeID) {
+  if (left.type.getSimpleTypeId() != right.type.getSimpleTypeId()) {
     if (!applyBuiltInConversions(left, right, ctx)) {
       inErrorMode = true;
       return;
@@ -482,7 +497,7 @@ void TranslatorListener::exitMultiplicative(
 
   auto op = ctx->op->getText();
   if (op == "*") {
-    if (!typeManager.isOperatorSupported(Operator::MUL, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::MUL, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -492,7 +507,7 @@ void TranslatorListener::exitMultiplicative(
     valueStack.push(multiplyRegisters(left, right));
   }
   if (op == "/") {
-    if (!typeManager.isOperatorSupported(Operator::DIV, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::DIV, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -502,7 +517,7 @@ void TranslatorListener::exitMultiplicative(
     valueStack.push(divideRegisters(left, right));
   }
   if (op == "%") {
-    if (!typeManager.isOperatorSupported(Operator::REM, left.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::REM, left.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -522,8 +537,10 @@ void TranslatorListener::exitCast(Lexy2Parser::CastContext* ctx) {
   if (value.category == Value::Category::MEMORY) {
     value = load(value);
   }
-  const auto targetType = ctx->TYPE_ID()->getText();
-  valueStack.push(castRegister(value, typeIDs[targetType]));
+  const auto targetTypeStr = ctx->TYPE_ID()->getText();
+  auto targetType = types::Type(std::make_unique<types::LeafNode>(
+      static_cast<PrimitiveType>(typeIDs[targetTypeStr])));
+  valueStack.push(castRegister(value, targetType));
 }
 
 void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
@@ -537,7 +554,7 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
   }
 
   if (ctx->op->getText() == "-") {
-    if (!typeManager.isOperatorSupported(Operator::NEG, value.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::NEG, value.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -547,7 +564,7 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
     valueStack.push(negateRegister(value));
   }
   if (ctx->op->getText() == "+") {
-    if (!typeManager.isOperatorSupported(Operator::POS, value.typeID)) {
+    if (!typeManager.isOperatorSupported(Operator::POS, value.type)) {
       inErrorMode = true;
       errorHandler.reportError(
           utils::getLineCol(ctx),
@@ -580,8 +597,10 @@ void TranslatorListener::exitIntegerLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->INTEGER_LITERAL()->getText(), INT_TYPE_ID,
-                        Value::Category::CONSTANT));
+  valueStack.push(
+      Value(ctx->INTEGER_LITERAL()->getText(),
+            types::Type(std::make_unique<types::LeafNode>(PrimitiveType::INT)),
+            Value::Category::CONSTANT));
 }
 
 void TranslatorListener::exitFloatLiteral(
@@ -589,16 +608,33 @@ void TranslatorListener::exitFloatLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->FLOAT_LITERAL()->getText(), DOUBLE_TYPE_ID,
-                        Value::Category::CONSTANT));
+  valueStack.push(Value(
+      ctx->FLOAT_LITERAL()->getText(),
+      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::DOUBLE)),
+      Value::Category::CONSTANT));
 }
 
 void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
   if (inErrorMode)
     return;
 
-  valueStack.push(Value(ctx->BOOL_LITERAL()->getText(), BOOL_TYPE_ID,
-                        Value::Category::CONSTANT));
+  valueStack.push(
+      Value(ctx->BOOL_LITERAL()->getText(),
+            types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+            Value::Category::CONSTANT));
+}
+
+void TranslatorListener::exitRankSpecifier(
+    Lexy2Parser::RankSpecifierContext* ctx) {
+  int dim = std::stoi(ctx->INTEGER_LITERAL()->getText());
+  currTypeNode =
+      std::make_unique<types::ArrayNode>(dim, std::move(currTypeNode));
+}
+
+void TranslatorListener::exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) {
+  auto typeID = typeIDs[ctx->TYPE_ID()->getText()];
+  currTypeNode =
+      std::make_unique<types::LeafNode>(static_cast<PrimitiveType>(typeID));
 }
 
 std::string TranslatorListener::getCode(const std::string& sourceFilename) {
