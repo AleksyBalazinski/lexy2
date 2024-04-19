@@ -73,4 +73,4 @@ literal:
 
 elementAccess: identifier elementIndex+;
 
-elementIndex: ('[' INTEGER_LITERAL ']');
+elementIndex: '[' expr ']';

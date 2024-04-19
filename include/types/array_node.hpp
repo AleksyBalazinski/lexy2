@@ -15,10 +15,16 @@ class ArrayNode : public TypeNode {
   }
 
   virtual bool isLeaf() const override { return false; }
+
   virtual std::optional<int> getSimpleTypeId() const override { return {}; }
+
   ArrayNode(int dim, std::unique_ptr<TypeNode> child)
       : dim(dim), child(std::move(child)) {}
-  TypeNode& getChild() const { return *child; }
+
+  virtual std::optional<TypeNode*> getChild() const override {
+    return child.get();
+  }
+
   int getDim() const { return dim; }
 };
 }  // namespace lexy2::types

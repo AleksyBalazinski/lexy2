@@ -19,3 +19,19 @@ TEST(LLVMStrVisitorTest, GenerationTests) {
 
   EXPECT_STREQ(actual.c_str(), expected);
 }
+
+TEST(TypePeelingTest, GenerationTests) {
+  auto leaf = std::make_unique<types::LeafNode>(PrimitiveType::INT);
+  auto a1 = std::make_unique<types::ArrayNode>(3, std::move(leaf));
+  auto a2 = std::make_unique<types::ArrayNode>(2, std::move(a1));
+  auto a3 = std::make_unique<types::ArrayNode>(1, std::move(a2));
+  auto type = types::Type(std::move(a3));
+
+  auto peeled = type.getPeeledType();
+
+  types::LLVMStrVisitor strVisitor;
+  peeled->applyVisitor(strVisitor);
+  auto actual = strVisitor.getStr();
+  const char* expected = "[2 x [3 x i32]]";
+  EXPECT_STREQ(actual.c_str(), expected);
+}

@@ -18,5 +18,7 @@ class LLVMStrVisitor : public TypeVisitor {
   }
 
   std::string getStr() const { return text; }
+
+  void reset() { text = ""; }
 };
 }  // namespace lexy2::types

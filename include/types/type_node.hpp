@@ -8,5 +8,6 @@ class TypeNode {
   virtual void accept(TypeVisitor& v) = 0;
   virtual bool isLeaf() const = 0;
   virtual std::optional<int> getSimpleTypeId() const = 0;
+  virtual std::optional<TypeNode*> getChild() const = 0;
 };
 }  // namespace lexy2::types

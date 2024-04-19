@@ -26,8 +26,21 @@ class Type {
   }
 
   void applyVisitor(TypeVisitor& v) const { root->accept(v); }
+
   bool isLeaf() const { return root->isLeaf(); }
+
   std::optional<int> getSimpleTypeId() const { return root->getSimpleTypeId(); }
+
+  std::optional<Type> getPeeledType() const {
+    auto child = root->getChild();
+    if (!child.has_value()) {
+      return {};
+    }
+
+    CloningVisitor cloningVisitor;
+    (*child)->accept(cloningVisitor);
+    return cloningVisitor.getClone();
+  }
 
   const TypeNode& getRoot() const { return *root; }
 };
