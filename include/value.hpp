@@ -6,7 +6,7 @@
 namespace lexy2 {
 
 struct Value {
-  enum class Category { REGISTER, MEMORY, CONSTANT };
+  enum class Category { REGISTER, MEMORY, CONSTANT, INTERNAL_PTR };
 
   Value(std::string name, types::Type type, Category category,
         std::string bareName)

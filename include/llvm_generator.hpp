@@ -25,6 +25,8 @@ class LLVMGenerator {
   int whileBodyNumber = 0;
   int whileEndNumber = 0;
 
+  int arrayIndexNumber = 0;
+
   static std::string getOpPrefix(Type type, BinOpName op);
   static std::string getRelPrefix(Type type);
   static std::string getOperationString(BinOpName op);
@@ -40,13 +42,14 @@ class LLVMGenerator {
                         const std::string& arg2);
 
   void createAssignment(Type type, const std::string& identifier,
-                        const std::string& value);
+                        const std::string& value, bool isInternalPtr = false);
 
   void createDeclaration(Type type, const std::string& arg);
   void createCustomDeclaration(const std::string& typeString,
                                const std::string& arg);
 
-  std::string createLoad(Type type, const std::string& id);
+  std::string createLoad(Type type, const std::string& id,
+                         bool isInternalPtr = false);
 
   void createBranch(const std::string& cond, const std::string& ifTrue,
                     const std::string& ifFalse);
@@ -67,9 +70,15 @@ class LLVMGenerator {
   std::string extBoolToI32(const std::string& id);
   std::string truncateI8ToI1(const std::string& val);
   std::string extI1toI8(const std::string& val);
+  std::string extI32toI64(const std::string& val);
   std::string truncDoubleToFloat(const std::string& val);
   std::string castFloatToI32(const std::string& val);
   std::string extFloatToDouble(const std::string& val);
+
+  std::string getElementPtrInBounds(const std::string& array,
+                                    const std::string& element,
+                                    const std::string& bounds,
+                                    bool isInternalPtr);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);

@@ -134,9 +134,11 @@ std::string LLVMGenerator::createRel(Type type, RelName relName,
 }
 
 void LLVMGenerator::createAssignment(Type type, const std::string& identifier,
-                                     const std::string& value) {
+                                     const std::string& value,
+                                     bool isInternalPtr) {
+  std::string idString = (isInternalPtr ? "" : "%") + identifier;
   text += getIndent() + "store " + getTypeString(type) + " " + value + ", " +
-          getTypeString(type) + "* %" + identifier + "\n";
+          getTypeString(type) + "* " + idString + "\n";
 }
 
 void LLVMGenerator::createDeclaration(Type type, const std::string& arg) {
@@ -148,10 +150,12 @@ void LLVMGenerator::createCustomDeclaration(const std::string& typeString,
   text += getIndent() + "%" + arg + " = alloca " + typeString + "\n";
 }
 
-std::string LLVMGenerator::createLoad(Type type, const std::string& id) {
+std::string LLVMGenerator::createLoad(Type type, const std::string& id,
+                                      bool isInternalPtr) {
   const auto regStr = getRegStr();
+  std::string idString = (isInternalPtr ? "" : "%") + id;
   text += getIndent() + regStr + " = load " + getTypeString(type) + ", " +
-          getTypeString(type) + "* %" + id + "\n";
+          getTypeString(type) + "* " + idString + "\n";
   ++reg;
   return regStr;
 }
@@ -237,6 +241,13 @@ std::string LLVMGenerator::extI1toI8(const std::string& val) {
   return regStr;
 }
 
+std::string LLVMGenerator::extI32toI64(const std::string& val) {
+  const auto regStr = getRegStr();
+  text += getIndent() + regStr + " = sext i32 " + val + " to i64\n";
+  ++reg;
+  return regStr;
+}
+
 std::string LLVMGenerator::truncDoubleToFloat(const std::string& val) {
   const auto regStr = getRegStr();
   text += getIndent() + regStr + " = fptrunc double " + val + " to float\n";
@@ -256,6 +267,17 @@ std::string LLVMGenerator::extFloatToDouble(const std::string& val) {
   text += getIndent() + regStr + " = fpext float " + val + " to double\n";
   ++reg;
   return regStr;
+}
+
+std::string LLVMGenerator::getElementPtrInBounds(const std::string& array,
+                                                 const std::string& element,
+                                                 const std::string& bounds,
+                                                 bool isInternalPtr) {
+  const auto arrayIdxStr = "%" + getNumberedLabel("arrayIdx", arrayIndexNumber);
+  auto arrStr = (isInternalPtr ? "" : "%") + array;
+  text += getIndent() + arrayIdxStr + " = getelementptr inbounds " + bounds +
+          ", ptr " + arrStr + ", i64 " + element + "\n";
+  return arrayIdxStr;
 }
 
 void LLVMGenerator::printI32(const std::string& id) {

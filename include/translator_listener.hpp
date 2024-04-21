@@ -108,6 +108,8 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) override;
 
+  void exitElementIndex(Lexy2Parser::ElementIndexContext* ctx) override;
+
   void exitType(Lexy2Parser::TypeContext* ctx) override {}
 
   void exitRankSpecifier(Lexy2Parser::RankSpecifierContext* ctx) override;
@@ -139,5 +141,10 @@ class TranslatorListener : public Lexy2BaseListener {
 
   bool applyBuiltInConversions(Value& left, Value& right,
                                const antlr4::ParserRuleContext* ctx);
+
+  void assignToVariable(const Value& lhs, Value& value,
+                        Lexy2Parser::AssignContext* ctx);
+  void assignToInternalPtr(const Value& lhs, Value& value,
+                           Lexy2Parser::AssignContext* ctx);
 };
 }  // namespace lexy2

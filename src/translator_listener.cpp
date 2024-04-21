@@ -29,7 +29,8 @@ void TranslatorListener::exitPrintIntrinsic(
 
   auto value = std::move(valueStack.top());
   valueStack.pop();
-  if (value.category == Value::Category::MEMORY) {
+  if (value.category == Value::Category::MEMORY ||
+      value.category == Value::Category::INTERNAL_PTR) {
     value = load(value);
   }
   if (value.type.isLeaf()) {
@@ -57,6 +58,12 @@ void TranslatorListener::exitDeclStatement(
     return;
 
   auto identifier = ctx->IDENTIFIER()->getText();
+  if (valueStack.empty()) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "No initializer for '" + identifier + "'");
+    inErrorMode = true;
+    return;
+  }
   auto initializer = std::move(valueStack.top());
   valueStack.pop();
   if (initializer.category == Value::Category::MEMORY) {
@@ -290,83 +297,20 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
 
   auto lhs = std::move(valueStack.top());
   valueStack.pop();
-  if (lhs.category != Value::Category::MEMORY) {
+  if (lhs.category != Value::Category::MEMORY &&
+      lhs.category != Value::Category::INTERNAL_PTR) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "r-value cannot be assigned to");
     inErrorMode = true;
     return;
   }
 
-  auto identifier = lhs.bareName;
-
-  const auto [iter, depth] = symbolTable.globalFind(identifier);
-  if (iter == symbolTable.end()) {
-    errorHandler.reportError(utils::getLineCol(ctx),
-                             "Identifier '" + identifier + "' not declared");
-    inErrorMode = true;
-    return;
+  if (lhs.category == Value::Category::MEMORY) {
+    assignToVariable(lhs, value, ctx);
   }
-
-  if (value.category == Value::Category::MEMORY) {
-    value = load(value);
+  if (lhs.category == Value::Category::INTERNAL_PTR) {
+    assignToInternalPtr(lhs, value, ctx);
   }
-  auto variable = iter->second;
-  variable.name += symbolTable.getScopeID(depth);
-
-  if (variable.type.getSimpleTypeId() != value.type.getSimpleTypeId()) {
-    if (typeManager.isImplicitFromTo(value.type, variable.type)) {
-      value = castRegister(value, variable.type);
-    } else {
-      errorHandler.reportError(utils::getLineCol(ctx),
-                               "No implicit conversion from ? to ?");
-      inErrorMode = true;
-      return;
-    }
-  }
-
-  const auto op = ctx->op->getText();
-  if (op == "+=") {
-    variable = load(variable);
-    value = addRegisters(variable, value);
-  }
-  if (op == "*=") {
-    variable = load(variable);
-    value = multiplyRegisters(variable, value);
-  }
-  if (op == "/=") {
-    variable = load(variable);
-    value = divideRegisters(variable, value);
-  }
-  if (op == "%=") {
-    variable = load(variable);
-    value = modRegisters(variable, value);
-  }
-  if (op == "-=") {
-    variable = load(variable);
-    value = subtractRegisters(variable, value);
-  }
-  if (op == "=") {
-    // do nothing
-  }
-  const auto scopedIdentifier = identifier + symbolTable.getScopeID(depth);
-  if (variable.type.isLeaf()) {
-    int variableTypeID = *variable.type.getSimpleTypeId();
-    if (variableTypeID == DOUBLE_TYPE_ID) {
-      generator.createAssignment(LLVMGenerator::Type::DOUBLE, scopedIdentifier,
-                                 value.name);
-    }
-    if (variableTypeID == INT_TYPE_ID) {
-      generator.createAssignment(LLVMGenerator::Type::I32, scopedIdentifier,
-                                 value.name);
-    }
-    if (variableTypeID == BOOL_TYPE_ID) {
-      value.name = generator.extI1toI8(value.name);
-      generator.createAssignment(LLVMGenerator::Type::I8, scopedIdentifier,
-                                 value.name);
-    }
-  }
-
-  valueStack.push(value);
 }
 
 void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
@@ -507,10 +451,12 @@ void TranslatorListener::exitMultiplicative(
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.category == Value::Category::MEMORY) {
+  if (left.category == Value::Category::MEMORY ||
+      left.category == Value::Category::INTERNAL_PTR) {
     left = load(left);
   }
-  if (right.category == Value::Category::MEMORY) {
+  if (right.category == Value::Category::MEMORY ||
+      right.category == Value::Category::INTERNAL_PTR) {
     right = load(right);
   }
 
@@ -648,6 +594,41 @@ void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
       Value(ctx->BOOL_LITERAL()->getText(),
             types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
             Value::Category::CONSTANT));
+}
+
+void TranslatorListener::exitElementIndex(
+    Lexy2Parser::ElementIndexContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [arr, idx] = utils::popTwo(valueStack);
+  if (idx.type.getSimpleTypeId() != INT_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Only int allowed as the type of the indexer");
+    inErrorMode = true;
+    return;
+  }
+  if (idx.category == Value::Category::MEMORY) {
+    idx = load(idx);
+  }
+
+  types::LLVMStrVisitor strVisitor;
+  arr.type.applyVisitor(strVisitor);
+  auto typeStr = strVisitor.getStr();
+
+  auto extIdx = generator.extI32toI64(idx.name);
+  auto arrayIdx = generator.getElementPtrInBounds(
+      arr.name, extIdx, typeStr, arr.category == Value::Category::INTERNAL_PTR);
+  auto peeledType = arr.type.getPeeledType();
+  if (!peeledType.has_value()) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Can't apply access operator to simple type");
+    inErrorMode = true;
+    return;
+  }
+
+  valueStack.push(Value(arrayIdx, *arr.type.getPeeledType(),
+                        Value::Category::INTERNAL_PTR));
 }
 
 void TranslatorListener::exitRankSpecifier(
