@@ -20,6 +20,7 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
   std::unique_ptr<types::TypeNode> currTypeNode;
+  std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
   const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
@@ -111,6 +112,8 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitElementIndex(Lexy2Parser::ElementIndexContext* ctx) override;
 
   void exitType(Lexy2Parser::TypeContext* ctx) override {}
+
+  void exitArrayType(Lexy2Parser::ArrayTypeContext* ctx) override;
 
   void exitRankSpecifier(Lexy2Parser::RankSpecifierContext* ctx) override;
 

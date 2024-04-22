@@ -610,15 +610,16 @@ void TranslatorListener::exitElementIndex(
   }
   if (idx.category == Value::Category::MEMORY) {
     idx = load(idx);
+    idx.name = generator.extI32toI64(idx.name);
   }
 
   types::LLVMStrVisitor strVisitor;
   arr.type.applyVisitor(strVisitor);
   auto typeStr = strVisitor.getStr();
 
-  auto extIdx = generator.extI32toI64(idx.name);
   auto arrayIdx = generator.getElementPtrInBounds(
-      arr.name, extIdx, typeStr, arr.category == Value::Category::INTERNAL_PTR);
+      arr.name, idx.name, typeStr,
+      arr.category == Value::Category::INTERNAL_PTR);
   auto peeledType = arr.type.getPeeledType();
   if (!peeledType.has_value()) {
     errorHandler.reportError(utils::getLineCol(ctx),
@@ -631,11 +632,20 @@ void TranslatorListener::exitElementIndex(
                         Value::Category::INTERNAL_PTR));
 }
 
+void TranslatorListener::exitArrayType(Lexy2Parser::ArrayTypeContext* ctx) {
+  while (!rankSpecStack.empty()) {
+    int rank = rankSpecStack.top();
+    rankSpecStack.pop();
+    currTypeNode =
+        std::make_unique<types::ArrayNode>(rank, std::move(currTypeNode));
+  }
+}
+
 void TranslatorListener::exitRankSpecifier(
     Lexy2Parser::RankSpecifierContext* ctx) {
   int dim = std::stoi(ctx->INTEGER_LITERAL()->getText());
-  currTypeNode =
-      std::make_unique<types::ArrayNode>(dim, std::move(currTypeNode));
+
+  rankSpecStack.push(dim);
 }
 
 void TranslatorListener::exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) {

@@ -276,7 +276,7 @@ std::string LLVMGenerator::getElementPtrInBounds(const std::string& array,
   const auto arrayIdxStr = "%" + getNumberedLabel("arrayIdx", arrayIndexNumber);
   auto arrStr = (isInternalPtr ? "" : "%") + array;
   text += getIndent() + arrayIdxStr + " = getelementptr inbounds " + bounds +
-          ", ptr " + arrStr + ", i64 " + element + "\n";
+          ", ptr " + arrStr + ", i64 0, i64 " + element + "\n";
   return arrayIdxStr;
 }
 
