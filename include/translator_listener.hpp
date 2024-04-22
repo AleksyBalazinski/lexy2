@@ -19,6 +19,8 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<Value> valueStack;
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
+  std::unique_ptr<types::TypeNode> currTypeNode;
+  std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
   const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
@@ -97,7 +99,7 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitUnary(Lexy2Parser::UnaryContext* ctx) override;
 
-  void exitIdenitifer(Lexy2Parser::IdenitiferContext* ctx) override;
+  void exitIdentifier(Lexy2Parser::IdentifierContext* ctx) override;
 
   void exitParens(Lexy2Parser::ParensContext* ctx) override {}
 
@@ -106,6 +108,16 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitFloatLiteral(Lexy2Parser::FloatLiteralContext* ctx) override;
 
   void exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) override;
+
+  void exitElementIndex(Lexy2Parser::ElementIndexContext* ctx) override;
+
+  void exitType(Lexy2Parser::TypeContext* ctx) override {}
+
+  void exitArrayType(Lexy2Parser::ArrayTypeContext* ctx) override;
+
+  void exitRankSpecifier(Lexy2Parser::RankSpecifierContext* ctx) override;
+
+  void exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) override;
 
   std::string getCode(const std::string& sourceFilename);
 
@@ -120,7 +132,7 @@ class TranslatorListener : public Lexy2BaseListener {
 
   Value modRegisters(const Value& left, const Value& right);
 
-  Value castRegister(const Value& value, int targetType);
+  Value castRegister(const Value& value, const types::Type& targetType);
 
   Value negateRegister(const Value& value);
 
@@ -132,5 +144,10 @@ class TranslatorListener : public Lexy2BaseListener {
 
   bool applyBuiltInConversions(Value& left, Value& right,
                                const antlr4::ParserRuleContext* ctx);
+
+  void assignToVariable(const Value& lhs, Value& value,
+                        Lexy2Parser::AssignContext* ctx);
+  void assignToInternalPtr(const Value& lhs, Value& value,
+                           Lexy2Parser::AssignContext* ctx);
 };
 }  // namespace lexy2

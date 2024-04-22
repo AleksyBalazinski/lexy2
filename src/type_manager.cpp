@@ -1,4 +1,5 @@
 #include "type_manager.hpp"
+#include <stdexcept>
 
 namespace lexy2 {
 LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType) {

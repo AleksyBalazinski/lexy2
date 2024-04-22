@@ -20,7 +20,7 @@ expr: assignmentExpr # fwd00 | expr ',' assignmentExpr # Comma;
 
 assignmentExpr:
 	conditionalExpr																# fwd01
-	| IDENTIFIER op = ('=' | '+=' | '-=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
+	| primaryExpr op = ('=' | '+=' | '-=' | '*=' | '/=' | '%=') conditionalExpr	# Assign;
 
 conditionalExpr:
 	logicalOrExpr														# fwd05
@@ -61,9 +61,16 @@ unaryExpr:
 primaryExpr:
 	literal			# fwd80
 	| '(' expr ')'	# Parens
-	| IDENTIFIER	# Idenitifer;
+	| identifier	# fwd85
+	| elementAccess	# fwd90;
+
+identifier: IDENTIFIER;
 
 literal:
 	INTEGER_LITERAL	# IntegerLiteral
 	| FLOAT_LITERAL	# FloatLiteral
 	| BOOL_LITERAL	# BoolLiteral;
+
+elementAccess: identifier elementIndex+;
+
+elementIndex: '[' expr ']';

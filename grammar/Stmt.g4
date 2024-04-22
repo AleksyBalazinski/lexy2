@@ -1,6 +1,6 @@
 grammar Stmt;
 
-import Expr;
+import Expr, Types;
 
 statement:
 	exprStatement
@@ -14,7 +14,7 @@ exprStatement: expr ';';
 
 printStatement: '__print' expr ';' # printIntrinsic;
 
-declStatement: 'let' IDENTIFIER (':' TYPE_ID)? '=' expr ';';
+declStatement: 'let' IDENTIFIER (':' type)? '=' expr ';';
 
 compoundStatement: '{' statement+ '}';
 
@@ -24,7 +24,7 @@ thenPart: compoundStatement;
 
 elsePart:
 	selectionStatement
-	| compoundStatement ; // allow for clean else-if
+	| compoundStatement; // allow for clean else-if
 
 selectionStatement:
 	'if' condition thenPart						# if

@@ -1,0 +1,61 @@
+// matrix multiplication
+let m1: int[2][2] = 0;
+m1[0][0] = 1;
+m1[0][1] = 2;
+m1[1][0] = 3;
+m1[1][1] = 4;
+
+let m2: int[2][3] = 0;
+m2[0][0] = 1;
+m2[0][1] = 7;
+m2[0][2] = -1;
+m2[1][0] = 1;
+m2[1][1] = 3;
+m2[1][2] = -2;
+
+let result: int[2][3] = 0;
+let i = 0;
+while i < 2 {
+    let j = 0;
+    while j < 3 {
+        result[i][j] = 0;
+        let k = 0;
+        while k < 2 {
+            result[i][j] += m1[i][k] * m2[k][j];
+            k += 1;
+        }
+        __print result[i][j];
+        j += 1;
+    }
+    i += 1;
+}
+
+__print 1111;
+// Sieve of Eratosthenes
+let prime: bool[100] = 0;
+i = 0;
+while i < 100 {
+    prime[i] = true;
+    i += 1;
+}
+
+let p = 2;
+while p * p <= 100 {
+    if prime[p] {
+        let l = p * p;
+        while l < 100 {
+            prime[l] = false;
+            l += p;
+        }
+    }
+    p += 1;
+}
+
+p = 2;
+while p <= 100 {
+    if prime[p] {
+        __print p;
+    }
+    p += 1;
+}
+

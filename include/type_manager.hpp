@@ -1,31 +1,11 @@
 #pragma once
 
-#include <array>
-#include <optional>
-#include <stdexcept>
-#include <utility>
 #include "llvm_generator.hpp"
+#include "operations.hpp"
+#include "primitive_type.hpp"
+#include "types/type.hpp"
 
 namespace lexy2 {
-
-enum class Operator {
-  ADD,
-  SUB,
-  MUL,
-  DIV,
-  REM,
-  NEG,
-  POS,
-  LT,
-  GT,
-  LE,
-  GE,
-  EQ,
-  NE
-};
-enum class PrimitiveType { INT, DOUBLE, BOOL, FLOAT };
-
-LLVMGenerator::Type toLLVMType(PrimitiveType primitiveType);
 
 class TypeManager {
   bool implicitConversions[4][4] = {
@@ -55,12 +35,21 @@ class TypeManager {
   };
 
  public:
-  bool isImplicitFromTo(int from, int to) {
-    return implicitConversions[from][to];
+  bool isImplicitFromTo(const types::Type& from, const types::Type& to) {
+    if (!from.isLeaf() || !to.isLeaf()) {
+      return false;
+    }
+    int fromID = *from.getSimpleTypeId();
+    int toID = *to.getSimpleTypeId();
+    return implicitConversions[fromID][toID];
   }
 
-  bool isOperatorSupported(Operator op, int type) {
-    return operatorSupport[static_cast<int>(op)][type];
+  bool isOperatorSupported(Operator op, const types::Type& type) {
+    if (!type.isLeaf()) {
+      return false;
+    }
+    int typeID = *type.getSimpleTypeId();
+    return operatorSupport[static_cast<int>(op)][typeID];
   }
 };  // namespace lexy2
 }  // namespace lexy2
