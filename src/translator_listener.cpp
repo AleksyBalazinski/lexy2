@@ -29,8 +29,7 @@ void TranslatorListener::exitPrintIntrinsic(
 
   auto value = std::move(valueStack.top());
   valueStack.pop();
-  if (value.category == Value::Category::MEMORY ||
-      value.category == Value::Category::INTERNAL_PTR) {
+  if (value.isInMemory()) {
     value = load(value);
   }
   if (value.type.isLeaf()) {
@@ -66,7 +65,7 @@ void TranslatorListener::exitDeclStatement(
   }
   auto initializer = std::move(valueStack.top());
   valueStack.pop();
-  if (initializer.category == Value::Category::MEMORY) {
+  if (initializer.isInMemory()) {
     initializer = load(initializer);
   }
   if (symbolTable.currentScopeFind(identifier) !=
@@ -145,6 +144,9 @@ void TranslatorListener::exitCondition(Lexy2Parser::ConditionContext* ctx) {
                              "Condition must be of boolean type");
     inErrorMode = true;
     return;
+  }
+  if (cond.isInMemory()) {
+    cond = load(cond);
   }
   auto [endOrElseLabel, thenLabel] = utils::peekTwo(basicBlockStack);
   generator.createBranch(cond.name, thenLabel, endOrElseLabel);
@@ -264,6 +266,9 @@ void TranslatorListener::exitWhileLoopCondition(
     inErrorMode = true;
     return;
   }
+  if (cond.isInMemory()) {
+    cond = load(cond);
+  }
   auto [endLabel, bodyLabel] = utils::peekTwo(basicBlockStack);
   generator.createBranch(cond.name, bodyLabel, endLabel);
 }
@@ -318,10 +323,10 @@ void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.category == Value::Category::MEMORY) {
+  if (left.isInMemory()) {
     left = load(left);
   }
-  if (right.category == Value::Category::MEMORY) {
+  if (right.isInMemory()) {
     right = load(right);
   }
 
@@ -346,10 +351,10 @@ void TranslatorListener::exitRelation(Lexy2Parser::RelationContext* ctx) {
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.category == Value::Category::MEMORY) {
+  if (left.isInMemory()) {
     left = load(left);
   }
-  if (right.category == Value::Category::MEMORY) {
+  if (right.isInMemory()) {
     right = load(right);
   }
 
@@ -408,10 +413,10 @@ void TranslatorListener::exitAdditive(Lexy2Parser::AdditiveContext* ctx) {
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.category == Value::Category::MEMORY) {
+  if (left.isInMemory()) {
     left = load(left);
   }
-  if (right.category == Value::Category::MEMORY) {
+  if (right.isInMemory()) {
     right = load(right);
   }
 
@@ -451,12 +456,10 @@ void TranslatorListener::exitMultiplicative(
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.category == Value::Category::MEMORY ||
-      left.category == Value::Category::INTERNAL_PTR) {
+  if (left.isInMemory()) {
     left = load(left);
   }
-  if (right.category == Value::Category::MEMORY ||
-      right.category == Value::Category::INTERNAL_PTR) {
+  if (right.isInMemory()) {
     right = load(right);
   }
 
@@ -506,7 +509,7 @@ void TranslatorListener::exitCast(Lexy2Parser::CastContext* ctx) {
 
   auto value = valueStack.top();
   valueStack.pop();
-  if (value.category == Value::Category::MEMORY) {
+  if (value.isInMemory()) {
     value = load(value);
   }
   const auto targetTypeStr = ctx->TYPE_ID()->getText();
@@ -521,7 +524,7 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
 
   auto value = valueStack.top();
   valueStack.pop();
-  if (value.category == Value::Category::MEMORY) {
+  if (value.isInMemory()) {
     value = load(value);
   }
 
@@ -608,7 +611,7 @@ void TranslatorListener::exitElementIndex(
     inErrorMode = true;
     return;
   }
-  if (idx.category == Value::Category::MEMORY) {
+  if (idx.isInMemory()) {
     idx = load(idx);
     idx.name = generator.extI32toI64(idx.name);
   }

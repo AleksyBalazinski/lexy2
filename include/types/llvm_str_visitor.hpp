@@ -13,6 +13,10 @@ class LLVMStrVisitor : public TypeVisitor {
   }
 
   virtual void visit(const LeafNode& LeafNode) override {
+    if (LeafNode.getPrimitiveType() == PrimitiveType::BOOL) {
+      text = "i8";
+      return;
+    }
     text =
         LLVMGenerator::getTypeString(toLLVMType(LeafNode.getPrimitiveType()));
   }

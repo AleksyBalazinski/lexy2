@@ -25,5 +25,9 @@ struct Value {
   std::string bareName;
   types::Type type;
   Category category;
+
+  inline bool isInMemory() {
+    return category == Category::MEMORY || category == Category::INTERNAL_PTR;
+  }
 };
 }  // namespace lexy2
