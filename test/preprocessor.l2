@@ -1,0 +1,4 @@
+#define N 10
+#define something 1000
+
+N + something / 12
