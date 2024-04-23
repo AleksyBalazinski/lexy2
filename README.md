@@ -7,7 +7,7 @@ Note that this will download and build the ANTLR runtime so it will take a while
 mkdir build
 cd build
 cmake ../ -G "Unix Makefiles" # specify a sane generator for Windows
-make
+cmake --build .
 ./lexy2
 ```
 

@@ -35,3 +35,23 @@ TEST(TypePeelingTest, GenerationTests) {
   const char* expected = "[2 x [3 x i32]]";
   EXPECT_STREQ(actual.c_str(), expected);
 }
+
+TEST(FunctionTreeTest, GenerationTests) {
+  auto intLeaf = std::make_unique<types::LeafNode>(PrimitiveType::INT);
+  auto arr = std::make_unique<types::ArrayNode>(3, std::move(intLeaf));
+  auto boolLeaf = std::make_unique<types::LeafNode>(PrimitiveType::BOOL);
+  std::vector<std::unique_ptr<types::TypeNode>> paramTypes;
+  paramTypes.push_back(std::move(arr));
+  paramTypes.push_back(std::move(boolLeaf));
+  auto ret = std::make_unique<types::LeafNode>(PrimitiveType::DOUBLE);
+  auto function = std::make_unique<types::FunctionNode>(std::move(paramTypes),
+                                                        std::move(ret));
+
+  auto functionType = types::Type(std::move(function));
+
+  types::LLVMStrVisitor visitor;
+  functionType.applyVisitor(visitor);
+  auto actual = visitor.getStr();
+  const char* expected = "([3 x i32], i8, ) -> double";
+  EXPECT_STREQ(actual.c_str(), expected);
+}

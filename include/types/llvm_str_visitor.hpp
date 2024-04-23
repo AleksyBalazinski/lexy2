@@ -1,6 +1,8 @@
 #pragma once
+#include <stdexcept>
 #include <string>
 #include "array_node.hpp"
+#include "function_node.hpp"
 #include "leaf_node.hpp"
 
 namespace lexy2::types {
@@ -9,6 +11,8 @@ class LLVMStrVisitor : public TypeVisitor {
 
  public:
   virtual void visit(const ArrayNode& arrayType) override {
+    auto child = *arrayType.getChild();
+    child->accept(*this);
     text = "[" + std::to_string(arrayType.getDim()) + " x " + text + "]";
   }
 
@@ -19,6 +23,23 @@ class LLVMStrVisitor : public TypeVisitor {
     }
     text =
         LLVMGenerator::getTypeString(toLLVMType(LeafNode.getPrimitiveType()));
+  }
+
+  virtual void visit(const FunctionNode& functionNode) override {
+    // TODO this doesn't return nothing useful, should be moved to some debugging visitor
+    //throw std::runtime_error("Not implemented");
+    std::string functionTypeStr;
+    const auto& paramTypes = functionNode.getParamTypes();
+    functionTypeStr += "(";
+    for (const auto& paramType : paramTypes) {
+      paramType->accept(*this);
+      functionTypeStr += text + ", ";
+    }
+    functionTypeStr += ") -> ";
+    TypeNode* returnType = functionNode.getReturnType();
+    returnType->accept(*this);
+    functionTypeStr += text;
+    text = functionTypeStr;
   }
 
   std::string getStr() const { return text; }

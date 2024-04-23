@@ -51,8 +51,8 @@ void TranslatorListener::exitPrintIntrinsic(
   }
 }
 
-void TranslatorListener::exitDeclStatement(
-    Lexy2Parser::DeclStatementContext* ctx) {
+void TranslatorListener::exitVariableDeclaration(
+    Lexy2Parser::VariableDeclarationContext* ctx) {
   if (inErrorMode)
     return;
 

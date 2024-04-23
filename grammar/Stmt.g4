@@ -14,7 +14,20 @@ exprStatement: expr ';';
 
 printStatement: '__print' expr ';' # printIntrinsic;
 
-declStatement: 'let' IDENTIFIER (':' type)? '=' expr ';';
+declStatement: variableDeclaration | functionDeclaration;
+
+variableDeclaration: 'let' IDENTIFIER (':' type)? '=' expr ';';
+
+functionDeclaration:
+	'fn' IDENTIFIER '(' paramList ')' ('->' type)? functionBody;
+
+paramList: param | paramList ',' param;
+
+param: IDENTIFIER ':' type;
+
+functionBody: compoundStatement;
+
+returnStatement: 'return' expr;
 
 compoundStatement: '{' statement+ '}';
 
