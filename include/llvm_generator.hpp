@@ -4,9 +4,10 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace lexy2 {
-
+class FunctionParam;
 class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
@@ -14,7 +15,14 @@ class LLVMGenerator {
   enum class RelName { EQ, NE, GE, LE, GT, LT };
 
  private:
+  std::string& getText() {
+    if (isInFunction)
+      return functionDefinitions;
+    return text;
+  }
   std::string text;
+  std::string functionDefinitions;
+  bool isInFunction = false;
   int reg = 1;
 
   int ifEndNumber = 0;
@@ -56,6 +64,10 @@ class LLVMGenerator {
 
   void createBranch(const std::string& dest);
   void createLabel(const std::string& label);
+
+  void createFunction(const std::string& functionName,
+                      const std::vector<FunctionParam>& params, Type retType);
+  void exitFunction();
 
   std::string getIfThenLabel();
   std::string getIfEndLabel();

@@ -5,14 +5,17 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "Lexy2BaseListener.h"
 #include "error_handler.hpp"
+#include "function_param.hpp"
 #include "llvm_generator.hpp"
 #include "operations.hpp"
 #include "symbol_table.hpp"
 #include "type_manager.hpp"
 #include "utils.hpp"
+
 namespace lexy2 {
 
 class TranslatorListener : public Lexy2BaseListener {
@@ -20,6 +23,9 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
   std::unique_ptr<types::TypeNode> currTypeNode;
+  std::vector<FunctionParam> functionParams;  // TODO move it somewhere
+  std::string functionName;                   // TODO move it somewhere
+  std::unique_ptr<types::TypeNode> retTypeNode;
   std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
@@ -47,6 +53,18 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitVariableDeclaration(
       Lexy2Parser::VariableDeclarationContext* ctx) override;
+
+  void exitFunctionDeclaration(
+      Lexy2Parser::FunctionDeclarationContext* ctx) override;
+
+  void exitFunctionName(Lexy2Parser::FunctionNameContext* ctx) override;
+
+  void exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) override;
+
+  void exitParam(Lexy2Parser::ParamContext* ctx) override;
+
+  void enterFunctionBody(Lexy2Parser::FunctionBodyContext* ctx) override;
+  void exitFunctionBody(Lexy2Parser::FunctionBodyContext* ctx) override;
 
   void enterCompoundStatement(
       Lexy2Parser::CompoundStatementContext* ctx) override;

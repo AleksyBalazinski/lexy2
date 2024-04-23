@@ -1,5 +1,8 @@
 #include "llvm_generator.hpp"
 #include <sstream>
+#include "function_param.hpp"
+#include "types/llvm_str_visitor.hpp"
+#include "types/type.hpp"
 #include "utils.hpp"
 
 namespace lexy2 {
@@ -116,9 +119,9 @@ std::string LLVMGenerator::createBinOp(BinOpName op, Type type,
                                        const std::string& arg1,
                                        const std::string& arg2) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = " + getOpPrefix(type, op) +
-          getOperationString(op) + " " + getTypeString(type) + " " + arg1 +
-          ", " + arg2 + "\n";
+  getText() += getIndent() + regStr + " = " + getOpPrefix(type, op) +
+               getOperationString(op) + " " + getTypeString(type) + " " + arg1 +
+               ", " + arg2 + "\n";
   ++reg;
   return regStr;
 }
@@ -126,9 +129,9 @@ std::string LLVMGenerator::createRel(Type type, RelName relName,
                                      const std::string& arg1,
                                      const std::string& arg2) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = " + getRelPrefix(type) + "cmp" + " " +
-          getRelNamePrefix(relName, type) + getRelName(relName) + " " +
-          getTypeString(type) + " " + arg1 + ", " + arg2 + "\n";
+  getText() += getIndent() + regStr + " = " + getRelPrefix(type) + "cmp" + " " +
+               getRelNamePrefix(relName, type) + getRelName(relName) + " " +
+               getTypeString(type) + " " + arg1 + ", " + arg2 + "\n";
   ++reg;
   return regStr;
 }
@@ -137,25 +140,26 @@ void LLVMGenerator::createAssignment(Type type, const std::string& identifier,
                                      const std::string& value,
                                      bool isInternalPtr) {
   std::string idString = (isInternalPtr ? "" : "%") + identifier;
-  text += getIndent() + "store " + getTypeString(type) + " " + value + ", " +
-          getTypeString(type) + "* " + idString + "\n";
+  getText() += getIndent() + "store " + getTypeString(type) + " " + value +
+               ", " + getTypeString(type) + "* " + idString + "\n";
 }
 
 void LLVMGenerator::createDeclaration(Type type, const std::string& arg) {
-  text += getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
+  getText() +=
+      getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
 }
 
 void LLVMGenerator::createCustomDeclaration(const std::string& typeString,
                                             const std::string& arg) {
-  text += getIndent() + "%" + arg + " = alloca " + typeString + "\n";
+  getText() += getIndent() + "%" + arg + " = alloca " + typeString + "\n";
 }
 
 std::string LLVMGenerator::createLoad(Type type, const std::string& id,
                                       bool isInternalPtr) {
   const auto regStr = getRegStr();
   std::string idString = (isInternalPtr ? "" : "%") + id;
-  text += getIndent() + regStr + " = load " + getTypeString(type) + ", " +
-          getTypeString(type) + "* " + idString + "\n";
+  getText() += getIndent() + regStr + " = load " + getTypeString(type) + ", " +
+               getTypeString(type) + "* " + idString + "\n";
   ++reg;
   return regStr;
 }
@@ -163,16 +167,44 @@ std::string LLVMGenerator::createLoad(Type type, const std::string& id,
 void LLVMGenerator::createBranch(const std::string& cond,
                                  const std::string& ifTrue,
                                  const std::string& ifFalse) {
-  text += getIndent() + "br i1 " + cond + ", label %" + ifTrue + ", label %" +
-          ifFalse + "\n";
+  getText() += getIndent() + "br i1 " + cond + ", label %" + ifTrue +
+               ", label %" + ifFalse + "\n";
 }
 
 void LLVMGenerator::createBranch(const std::string& dest) {
-  text += getIndent() + "br label %" + dest + "\n";
+  getText() += getIndent() + "br label %" + dest + "\n";
 }
 
 void LLVMGenerator::createLabel(const std::string& label) {
-  text += label + ":\n";
+  getText() += label + ":\n";
+}
+
+void LLVMGenerator::createFunction(const std::string& functionName,
+                                   const std::vector<FunctionParam>& params,
+                                   Type retType) {
+  const char* sep = "";
+  std::string paramsStr;
+  types::LLVMStrVisitor strVisitor;
+  for (const auto& param : params) {
+    const auto& name = param.name;
+    const auto& type = param.type;
+    if (!type.isLeaf()) {
+      throw std::runtime_error("Not implemented");
+    }
+    type.applyVisitor(strVisitor);
+    auto typeStr = strVisitor.getStr();
+    strVisitor.reset();
+    paramsStr += sep + typeStr + " noundef %" + name;
+    sep = ", ";
+  }
+  functionDefinitions += "define dso_local " + getTypeString(retType) + " @" +
+                         functionName + "(" + paramsStr + ") #0 {\n";
+  isInFunction = true;
+}
+
+void LLVMGenerator::exitFunction() {
+  functionDefinitions += "}\n\n";
+  isInFunction = false;
 }
 
 std::string LLVMGenerator::getIfThenLabel() {
@@ -201,70 +233,71 @@ std::string LLVMGenerator::getWhileEndLabel() {
 
 std::string LLVMGenerator::castI32ToDouble(const std::string& id) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = sitofp i32 " + id + " to double\n";
+  getText() += getIndent() + regStr + " = sitofp i32 " + id + " to double\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::castI32ToFloat(const std::string& id) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = sitofp i32 " + id + " to float\n";
+  getText() += getIndent() + regStr + " = sitofp i32 " + id + " to float\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::castDoubleToI32(const std::string& id) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = fptosi double " + id + " to i32\n";
+  getText() += getIndent() + regStr + " = fptosi double " + id + " to i32\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::extBoolToI32(const std::string& id) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = zext i1 " + id + " to i32\n";
+  getText() += getIndent() + regStr + " = zext i1 " + id + " to i32\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::truncateI8ToI1(const std::string& val) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = trunc i8 " + val + " to i1\n";
+  getText() += getIndent() + regStr + " = trunc i8 " + val + " to i1\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::extI1toI8(const std::string& val) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = zext i1 " + val + " to i8\n";
+  getText() += getIndent() + regStr + " = zext i1 " + val + " to i8\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::extI32toI64(const std::string& val) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = sext i32 " + val + " to i64\n";
+  getText() += getIndent() + regStr + " = sext i32 " + val + " to i64\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::truncDoubleToFloat(const std::string& val) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = fptrunc double " + val + " to float\n";
+  getText() +=
+      getIndent() + regStr + " = fptrunc double " + val + " to float\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::castFloatToI32(const std::string& val) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = fptosi float " + val + " to i32\n";
+  getText() += getIndent() + regStr + " = fptosi float " + val + " to i32\n";
   ++reg;
   return regStr;
 }
 
 std::string LLVMGenerator::extFloatToDouble(const std::string& val) {
   const auto regStr = getRegStr();
-  text += getIndent() + regStr + " = fpext float " + val + " to double\n";
+  getText() += getIndent() + regStr + " = fpext float " + val + " to double\n";
   ++reg;
   return regStr;
 }
@@ -275,23 +308,24 @@ std::string LLVMGenerator::getElementPtrInBounds(const std::string& array,
                                                  bool isInternalPtr) {
   const auto arrayIdxStr = "%" + getNumberedLabel("arrayIdx", arrayIndexNumber);
   auto arrStr = (isInternalPtr ? "" : "%") + array;
-  text += getIndent() + arrayIdxStr + " = getelementptr inbounds " + bounds +
-          ", ptr " + arrStr + ", i64 0, i64 " + element + "\n";
+  getText() += getIndent() + arrayIdxStr + " = getelementptr inbounds " +
+               bounds + ", ptr " + arrStr + ", i64 0, i64 " + element + "\n";
   return arrayIdxStr;
 }
 
 void LLVMGenerator::printI32(const std::string& id) {
-  text += getIndent() +
-          "call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef " +
-          id + ")\n";
+  getText() +=
+      getIndent() +
+      "call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef " + id +
+      ")\n";
   ++reg;
 }
 
 void LLVMGenerator::printDouble(const std::string& id) {
-  text += getIndent() +
-          "call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double "
-          "noundef " +
-          id + ")\n";
+  getText() += getIndent() +
+               "call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double "
+               "noundef " +
+               id + ")\n";
   ++reg;
 }
 
@@ -302,6 +336,7 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
       "target triple = \"x86_64-w64-windows-gnu\"\n\n";  // TODO: obtain this somehow
   code += getPrintfFormatStrings() + "\n";
   code += getCStdLibDeclarations() + "\n";
+  code += functionDefinitions;
   code += "define dso_local i32 @main() #0 {\n";
   code += text;
   code += getIndent() + "ret i32 0\n}\n";

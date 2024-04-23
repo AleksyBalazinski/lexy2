@@ -19,7 +19,11 @@ declStatement: variableDeclaration | functionDeclaration;
 variableDeclaration: 'let' IDENTIFIER (':' type)? '=' expr ';';
 
 functionDeclaration:
-	'fn' IDENTIFIER '(' paramList ')' ('->' type)? functionBody;
+	'fn' functionName '(' paramList ')' ('->' returnType)? functionBody;
+
+functionName: IDENTIFIER;
+
+returnType: type;
 
 paramList: param | paramList ',' param;
 

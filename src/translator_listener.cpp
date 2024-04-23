@@ -121,6 +121,41 @@ void TranslatorListener::exitVariableDeclaration(
       Value(identifier, std::move(initializer.type), Value::Category::MEMORY)));
 }
 
+void TranslatorListener::exitFunctionDeclaration(
+    Lexy2Parser::FunctionDeclarationContext* ctx) {
+  // TODO add this function to symbol table (construct type!)
+}
+
+void TranslatorListener::exitFunctionName(
+    Lexy2Parser::FunctionNameContext* ctx) {
+  functionName = ctx->IDENTIFIER()->getText();
+}
+
+void TranslatorListener::exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) {
+  retTypeNode = std::move(currTypeNode);
+}
+
+void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
+  auto paramName = ctx->IDENTIFIER()->getText();
+  functionParams.push_back(
+      FunctionParam(paramName, types::Type(std::move(currTypeNode))));
+}
+
+void TranslatorListener::enterFunctionBody(
+    Lexy2Parser::FunctionBodyContext* ctx) {
+  if (!retTypeNode->isLeaf()) {
+    throw std::runtime_error("Not implemented");
+  }
+  auto typeID = *retTypeNode->getSimpleTypeId();
+  generator.createFunction(functionName, functionParams,
+                           toLLVMType(static_cast<PrimitiveType>(typeID)));
+}
+
+void TranslatorListener::exitFunctionBody(
+    Lexy2Parser::FunctionBodyContext* ctx) {
+  generator.exitFunction();
+}
+
 void TranslatorListener::enterCompoundStatement(
     Lexy2Parser::CompoundStatementContext* ctx) {
   // note that this won't be skipped in panic mode
