@@ -11,7 +11,7 @@ class LeafNode : public TypeNode {
  public:
   LeafNode(PrimitiveType primitiveType) : primitiveType(primitiveType) {}
 
-  virtual void accept(TypeVisitor& v) override { v.visit(*this); }
+  virtual void accept(TypeVisitor& v) const override { v.visit(*this); }
 
   virtual bool isLeaf() const override { return true; }
 

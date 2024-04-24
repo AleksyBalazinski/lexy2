@@ -35,6 +35,8 @@ class LLVMGenerator {
 
   int arrayIndexNumber = 0;
 
+  int callRegisterNumber = 0;
+
   static std::string getOpPrefix(Type type, BinOpName op);
   static std::string getRelPrefix(Type type);
   static std::string getOperationString(BinOpName op);
@@ -70,6 +72,8 @@ class LLVMGenerator {
   void exitFunction();
 
   void createReturn(Type type, const std::string& arg);
+  std::string createCall(const std::string& functionName,
+                         const std::vector<FunctionParam>& args, Type retType);
 
   std::string getIfThenLabel();
   std::string getIfEndLabel();

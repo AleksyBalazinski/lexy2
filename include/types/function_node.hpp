@@ -10,7 +10,7 @@ class FunctionNode : public TypeNode {
   std::unique_ptr<TypeNode> returnType;
 
  public:
-  virtual void accept(TypeVisitor& v) override { v.visit(*this); }
+  virtual void accept(TypeVisitor& v) const override { v.visit(*this); }
 
   virtual bool isLeaf() const override { return false; }
 

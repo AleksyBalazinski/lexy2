@@ -16,6 +16,8 @@ std::string LLVMGenerator::getTypeString(Type type) {
       return "double";
     case Type::FLOAT:
       return "float";
+    case Type::I1:
+      return "i1";
     default:
       return "";
   }
@@ -210,6 +212,26 @@ void LLVMGenerator::exitFunction() {
 
 void LLVMGenerator::createReturn(Type type, const std::string& arg) {
   getText() += getIndent() + "ret " + getTypeString(type) + " " + arg + "\n";
+}
+
+std::string LLVMGenerator::createCall(const std::string& functionName,
+                                      const std::vector<FunctionParam>& args,
+                                      Type retType) {
+  std::string argsString;
+  types::LLVMStrVisitor strVisitor;
+  const char* sep = "";
+  for (const auto& arg : args) {
+    arg.type.applyVisitor(strVisitor);
+    argsString += sep + strVisitor.getStr() + " noundef " + arg.name;
+    strVisitor.reset();
+    sep = ", ";
+  }
+  auto callReg = getNumberedLabel("call", callRegisterNumber);
+  getText() += getIndent() + "%" + callReg + " = call " +
+               getTypeString(retType) + " @" + functionName + "(" + argsString +
+               ")\n";
+
+  return "%" + callReg;
 }
 
 std::string LLVMGenerator::getIfThenLabel() {

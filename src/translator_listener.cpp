@@ -1,4 +1,5 @@
 #include "translator_listener.hpp"
+#include <algorithm>
 #include <tuple>
 #include "types/llvm_str_visitor.hpp"
 #include "types/type.hpp"
@@ -123,7 +124,20 @@ void TranslatorListener::exitVariableDeclaration(
 
 void TranslatorListener::exitFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
-  // TODO add this function to symbol table (construct type!)
+  std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
+  for (const auto& param : functionParams) {
+    types::CloningVisitor cv;
+    param.type.getRoot().accept(cv);
+    typeNodes.push_back(cv.getClone());
+  }
+  types::CloningVisitor cv;
+  retType.getRoot().accept(cv);
+  types::Type functionType(std::make_unique<types::FunctionNode>(
+      std::move(typeNodes), cv.getClone()));
+  symbolTable.insertInCurrentScope(std::make_pair(
+      functionName,
+      Value(functionName, functionType, Value::Category::MEMORY)));
+  functionParams.clear();
 }
 
 void TranslatorListener::exitFunctionName(
@@ -149,8 +163,11 @@ void TranslatorListener::enterFunctionBody(
   }
 
   auto typeID = *retType.getSimpleTypeId();
-  generator.createFunction(functionName, functionParams,
-                           toLLVMType(static_cast<PrimitiveType>(typeID)));
+  auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
+  if (typeID == BOOL_TYPE_ID) {
+    retLLVMType = LLVMGenerator::Type::I1;
+  }
+  generator.createFunction(functionName, functionParams, retLLVMType);
 
   // allocate memory for arguments
   for (const auto& param : functionParams) {
@@ -161,6 +178,9 @@ void TranslatorListener::enterFunctionBody(
     auto typeID = *paramType.getSimpleTypeId();
     const auto scopedIdentifier = param.name + symbolTable.getCurrentScopeID();
     auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
+    if (typeID == BOOL_TYPE_ID) {
+      llvmType = LLVMGenerator::Type::I8;
+    }
     generator.createDeclaration(llvmType, scopedIdentifier);
     generator.createAssignment(llvmType, scopedIdentifier, "%" + param.name);
 
@@ -172,8 +192,6 @@ void TranslatorListener::enterFunctionBody(
   // allocate memory for return variable
   generator.createDeclaration(toLLVMType(static_cast<PrimitiveType>(typeID)),
                               "retVal");
-
-  functionParams.clear();
 }
 
 void TranslatorListener::exitFunctionBody(
@@ -188,6 +206,9 @@ void TranslatorListener::exitFunctionBody(
 
 void TranslatorListener::exitReturnStatement(
     Lexy2Parser::ReturnStatementContext* ctx) {
+  if (inErrorMode)
+    return;
+
   auto value = valueStack.top();
   valueStack.pop();
   if (value.isInMemory()) {
@@ -721,6 +742,68 @@ void TranslatorListener::exitElementIndex(
 
   valueStack.push(Value(arrayIdx, *arr.type.getPeeledType(),
                         Value::Category::INTERNAL_PTR));
+}
+
+void TranslatorListener::enterFunctionCall(
+    Lexy2Parser::FunctionCallContext* ctx) {
+  functionArgsCount = 0;
+}
+
+void TranslatorListener::exitFunctionCall(
+    Lexy2Parser::FunctionCallContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  std::vector<FunctionParam> args;
+
+  for (int i = 0; i < functionArgsCount; ++i) {
+    auto value = std::move(valueStack.top());
+    valueStack.pop();
+    if (value.isInMemory()) {
+      value = load(value);
+    }
+    args.push_back(FunctionParam(value.name, value.type));
+  }
+  std::reverse(args.begin(), args.end());
+
+  auto function = std::move(valueStack.top());
+  valueStack.pop();
+  const auto& functionNode =
+      dynamic_cast<const types::FunctionNode&>(function.type.getRoot());
+  const auto& paramTypes = functionNode.getParamTypes();
+
+  if (functionArgsCount != paramTypes.size()) {
+    errorHandler.reportError(
+        utils::getLineCol(ctx),
+        "Function '" + function.name + "' accepts " +
+            std::to_string(paramTypes.size()) + " arguments but " +
+            std::to_string(functionArgsCount) + " were provided");
+    inErrorMode = true;
+    return;
+  }
+  for (int i = 0; i < functionArgsCount; ++i) {
+    if (paramTypes[i]->getSimpleTypeId() != args[i].type.getSimpleTypeId()) {
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Type mismatch in call to '" + function.name + "'");
+      inErrorMode = true;
+      return;
+    }
+  }
+
+  auto typeID = *functionNode.getReturnType()->getSimpleTypeId();
+  auto callResult = generator.createCall(
+      function.name, args, toLLVMType(static_cast<PrimitiveType>(typeID)));
+  types::CloningVisitor cv;
+  functionNode.getReturnType()->accept(cv);
+  valueStack.push(Value(callResult, cv.getClone()));
+}
+
+void TranslatorListener::exitFunctionArg(Lexy2Parser::FunctionArgContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  ++functionArgsCount;
 }
 
 void TranslatorListener::exitArrayType(Lexy2Parser::ArrayTypeContext* ctx) {
