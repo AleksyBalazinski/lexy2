@@ -69,6 +69,8 @@ class LLVMGenerator {
                       const std::vector<FunctionParam>& params, Type retType);
   void exitFunction();
 
+  void createReturn(Type type, const std::string& arg);
+
   std::string getIfThenLabel();
   std::string getIfEndLabel();
   std::string getIfElseLabel();

@@ -8,7 +8,8 @@ statement:
 	| printStatement
 	| compoundStatement
 	| selectionStatement
-	| iterationStatement;
+	| iterationStatement
+	| returnStatement;
 
 exprStatement: expr ';';
 
@@ -29,9 +30,9 @@ paramList: param | paramList ',' param;
 
 param: IDENTIFIER ':' type;
 
-functionBody: compoundStatement;
+functionBody: '{' statement+ '}';
 
-returnStatement: 'return' expr;
+returnStatement: 'return' expr ';';
 
 compoundStatement: '{' statement+ '}';
 

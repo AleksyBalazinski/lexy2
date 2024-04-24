@@ -10,6 +10,7 @@ class Type {
   std::unique_ptr<TypeNode> root;
 
  public:
+  Type() : Type(nullptr) {}
   Type(std::unique_ptr<TypeNode> root) : root(std::move(root)) {}
 
   Type(const Type& other) {

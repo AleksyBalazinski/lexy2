@@ -204,7 +204,12 @@ void LLVMGenerator::createFunction(const std::string& functionName,
 
 void LLVMGenerator::exitFunction() {
   functionDefinitions += "}\n\n";
+  reg = 1;
   isInFunction = false;
+}
+
+void LLVMGenerator::createReturn(Type type, const std::string& arg) {
+  getText() += getIndent() + "ret " + getTypeString(type) + " " + arg + "\n";
 }
 
 std::string LLVMGenerator::getIfThenLabel() {

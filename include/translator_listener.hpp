@@ -25,7 +25,7 @@ class TranslatorListener : public Lexy2BaseListener {
   std::unique_ptr<types::TypeNode> currTypeNode;
   std::vector<FunctionParam> functionParams;  // TODO move it somewhere
   std::string functionName;                   // TODO move it somewhere
-  std::unique_ptr<types::TypeNode> retTypeNode;
+  types::Type retType;
   std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
@@ -65,6 +65,8 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void enterFunctionBody(Lexy2Parser::FunctionBodyContext* ctx) override;
   void exitFunctionBody(Lexy2Parser::FunctionBodyContext* ctx) override;
+
+  void exitReturnStatement(Lexy2Parser::ReturnStatementContext* ctx) override;
 
   void enterCompoundStatement(
       Lexy2Parser::CompoundStatementContext* ctx) override;
