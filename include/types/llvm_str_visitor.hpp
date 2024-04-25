@@ -8,8 +8,11 @@
 namespace lexy2::types {
 class LLVMStrVisitor : public TypeVisitor {
   std::string text;
+  bool boolAsI1;
 
  public:
+  LLVMStrVisitor(bool boolAsI1 = false) : boolAsI1(boolAsI1) {}
+
   virtual void visit(const ArrayNode& arrayType) override {
     auto child = *arrayType.getChild();
     child->accept(*this);
@@ -18,6 +21,10 @@ class LLVMStrVisitor : public TypeVisitor {
 
   virtual void visit(const LeafNode& LeafNode) override {
     if (LeafNode.getPrimitiveType() == PrimitiveType::BOOL) {
+      if (boolAsI1) {
+        text = "i1";
+        return;
+      }
       text = "i8";
       return;
     }

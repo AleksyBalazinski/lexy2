@@ -122,6 +122,11 @@ void TranslatorListener::exitVariableDeclaration(
       Value(identifier, std::move(initializer.type), Value::Category::MEMORY)));
 }
 
+void TranslatorListener::enterFunctionDeclaration(
+    Lexy2Parser::FunctionDeclarationContext* ctx) {
+  functionParams.clear();
+}
+
 void TranslatorListener::exitFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
   std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
@@ -131,13 +136,14 @@ void TranslatorListener::exitFunctionDeclaration(
     typeNodes.push_back(cv.getClone());
   }
   types::CloningVisitor cv;
-  retType.getRoot().accept(cv);
+  retTypesStack.top().getRoot().accept(cv);
   types::Type functionType(std::make_unique<types::FunctionNode>(
       std::move(typeNodes), cv.getClone()));
   symbolTable.insertInCurrentScope(std::make_pair(
       functionName,
       Value(functionName, functionType, Value::Category::MEMORY)));
   functionParams.clear();
+  retTypesStack.pop();
 }
 
 void TranslatorListener::exitFunctionName(
@@ -146,7 +152,8 @@ void TranslatorListener::exitFunctionName(
 }
 
 void TranslatorListener::exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) {
-  retType = types::Type(std::move(currTypeNode));
+  //retType = types::Type(std::move(currTypeNode));
+  retTypesStack.push(types::Type(std::move(currTypeNode)));
 }
 
 void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
@@ -158,11 +165,11 @@ void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
 void TranslatorListener::enterFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
   symbolTable.enterNewScope();
-  if (!retType.isLeaf()) {
+  if (!retTypesStack.top().isLeaf()) {
     throw std::runtime_error("Not implemented");
   }
 
-  auto typeID = *retType.getSimpleTypeId();
+  auto typeID = *retTypesStack.top().getSimpleTypeId();
   auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
   if (typeID == BOOL_TYPE_ID) {
     retLLVMType = LLVMGenerator::Type::I1;
@@ -179,10 +186,14 @@ void TranslatorListener::enterFunctionBody(
     const auto scopedIdentifier = param.name + symbolTable.getCurrentScopeID();
     auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
     if (typeID == BOOL_TYPE_ID) {
+      auto extParam = generator.extI1toI8("%" + param.name);
       llvmType = LLVMGenerator::Type::I8;
+      generator.createDeclaration(llvmType, scopedIdentifier);
+      generator.createAssignment(llvmType, scopedIdentifier, extParam);
+    } else {
+      generator.createDeclaration(llvmType, scopedIdentifier);
+      generator.createAssignment(llvmType, scopedIdentifier, "%" + param.name);
     }
-    generator.createDeclaration(llvmType, scopedIdentifier);
-    generator.createAssignment(llvmType, scopedIdentifier, "%" + param.name);
 
     symbolTable.insertInCurrentScope(std::make_pair(
         param.name,
@@ -190,14 +201,17 @@ void TranslatorListener::enterFunctionBody(
   }
 
   // allocate memory for return variable
-  generator.createDeclaration(toLLVMType(static_cast<PrimitiveType>(typeID)),
-                              "retVal");
+  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
+  if (typeID == BOOL_TYPE_ID) {
+    llvmType = LLVMGenerator::Type::I8;
+  }
+  generator.createDeclaration(llvmType, "retVal");
 }
 
 void TranslatorListener::exitFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
   symbolTable.leaveScope();
-  auto typeID = *retType.getSimpleTypeId();
+  auto typeID = *retTypesStack.top().getSimpleTypeId();
   auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   auto loaded = generator.createLoad(llvmType, "retVal");
   generator.createReturn(llvmType, loaded);
@@ -215,9 +229,9 @@ void TranslatorListener::exitReturnStatement(
     value = load(value);
   }
 
-  if (value.type.getSimpleTypeId() != retType.getSimpleTypeId()) {
-    if (typeManager.isImplicitFromTo(value.type, retType)) {
-      value = castRegister(value, retType);
+  if (value.type.getSimpleTypeId() != retTypesStack.top().getSimpleTypeId()) {
+    if (typeManager.isImplicitFromTo(value.type, retTypesStack.top())) {
+      value = castRegister(value, retTypesStack.top());
     } else {
       errorHandler.reportError(utils::getLineCol(ctx),
                                "No implicit conversion from ? to ?");
@@ -225,8 +239,14 @@ void TranslatorListener::exitReturnStatement(
       return;
     }
   }
-  auto llvmType =
-      toLLVMType(static_cast<PrimitiveType>(*value.type.getSimpleTypeId()));
+
+  auto typeID = *value.type.getSimpleTypeId();
+  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
+  if (typeID == BOOL_TYPE_ID) {
+    value.name = generator.extI1toI8(value.name);
+    llvmType = LLVMGenerator::Type::I8;
+  }
+
   generator.createAssignment(llvmType, "retVal", value.name);
 }
 

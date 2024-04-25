@@ -184,9 +184,10 @@ void LLVMGenerator::createLabel(const std::string& label) {
 void LLVMGenerator::createFunction(const std::string& functionName,
                                    const std::vector<FunctionParam>& params,
                                    Type retType) {
+  reg = 1;
   const char* sep = "";
   std::string paramsStr;
-  types::LLVMStrVisitor strVisitor;
+  types::LLVMStrVisitor strVisitor(true);
   for (const auto& param : params) {
     const auto& name = param.name;
     const auto& type = param.type;
@@ -218,7 +219,7 @@ std::string LLVMGenerator::createCall(const std::string& functionName,
                                       const std::vector<FunctionParam>& args,
                                       Type retType) {
   std::string argsString;
-  types::LLVMStrVisitor strVisitor;
+  types::LLVMStrVisitor strVisitor(true);
   const char* sep = "";
   for (const auto& arg : args) {
     arg.type.applyVisitor(strVisitor);
