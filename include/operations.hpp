@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdexcept>
-#include "llvm_generator.hpp"
+#include "code_gen/llvm_generator.hpp"
 
 namespace lexy2 {
 enum class Relation { EQ, NEQ, LT, GT, GE, LE };

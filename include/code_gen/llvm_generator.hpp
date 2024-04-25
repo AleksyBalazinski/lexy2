@@ -2,9 +2,11 @@
 
 #include <optional>
 #include <sstream>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "code_gen/graph.hpp"
 
 namespace lexy2 {
 class FunctionParam;
@@ -16,13 +18,14 @@ class LLVMGenerator {
 
  private:
   std::string& getText() {
-    if (isInFunction)
-      return functionDefinitions;
+    if (!activeFunctions.empty())
+      return activeFunctions.top()->text;
     return text;
   }
   std::string text;
-  std::string functionDefinitions;
-  bool isInFunction = false;
+  std::stack<Node*> functionDefs;
+  std::stack<Node*> activeFunctions;
+  Graph graph;
   int reg = 1;
 
   int ifEndNumber = 0;

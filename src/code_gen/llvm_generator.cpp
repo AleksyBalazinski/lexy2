@@ -1,5 +1,6 @@
-#include "llvm_generator.hpp"
+#include "code_gen/llvm_generator.hpp"
 #include <sstream>
+#include "code_gen/topo_sorter.hpp"
 #include "function_param.hpp"
 #include "types/llvm_str_visitor.hpp"
 #include "types/type.hpp"
@@ -185,6 +186,14 @@ void LLVMGenerator::createFunction(const std::string& functionName,
                                    const std::vector<FunctionParam>& params,
                                    Type retType) {
   reg = 1;
+  auto node = std::make_unique<Node>();
+  if (!functionDefs.empty()) {
+    functionDefs.top()->neighbors.push_back(node.get());
+  }
+  functionDefs.push(node.get());
+  activeFunctions.push(node.get());
+  graph.insertNode(std::move(node));
+
   const char* sep = "";
   std::string paramsStr;
   types::LLVMStrVisitor strVisitor(true);
@@ -200,15 +209,24 @@ void LLVMGenerator::createFunction(const std::string& functionName,
     paramsStr += sep + typeStr + " noundef %" + name;
     sep = ", ";
   }
-  functionDefinitions += "define dso_local " + getTypeString(retType) + " @" +
-                         functionName + "(" + paramsStr + ") #0 {\n";
-  isInFunction = true;
+  getText() += "define dso_local " + getTypeString(retType) + " @" +
+               functionName + "(" + paramsStr + ") #0 {\n";
 }
 
 void LLVMGenerator::exitFunction() {
-  functionDefinitions += "}\n\n";
+  getText() += "}\n\n";
   reg = 1;
-  isInFunction = false;
+
+  if (!activeFunctions.empty()) {
+    activeFunctions.pop();
+  }
+  if (!functionDefs.empty()) {
+    functionDefs.top()->ttl--;
+    while (!functionDefs.empty() && functionDefs.top()->ttl == 0) {
+      functionDefs.pop();
+      functionDefs.top()->ttl--;
+    }
+  }
 }
 
 void LLVMGenerator::createReturn(Type type, const std::string& arg) {
@@ -364,6 +382,14 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
       "target triple = \"x86_64-w64-windows-gnu\"\n\n";  // TODO: obtain this somehow
   code += getPrintfFormatStrings() + "\n";
   code += getCStdLibDeclarations() + "\n";
+  TopologicalSorter sorter;
+  auto orderedFunctions = sorter.getOrdered(graph);
+  std::string functionDefinitions;
+  for (auto it = orderedFunctions.rbegin(); it != orderedFunctions.rend();
+       ++it) {
+    const auto& funDef = *it;
+    functionDefinitions += funDef->text;
+  }
   code += functionDefinitions;
   code += "define dso_local i32 @main() #0 {\n";
   code += text;

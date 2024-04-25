@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "Lexy2BaseListener.h"
+#include "code_gen/llvm_generator.hpp"
 #include "error_handler.hpp"
 #include "function_param.hpp"
-#include "llvm_generator.hpp"
 #include "operations.hpp"
 #include "symbol_table.hpp"
 #include "type_manager.hpp"
@@ -23,10 +23,10 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
   std::unique_ptr<types::TypeNode> currTypeNode;
-  std::vector<FunctionParam> functionParams;  // TODO move it somewhere
-  std::string functionName;                   // TODO move it somewhere
-  //types::Type retType;                        // TODO move it somewhere
-  std::stack<types::Type> retTypesStack;
+  std::stack<std::vector<FunctionParam>>
+      functionParams;                     // TODO move it somewhere
+  std::stack<types::Type> retTypesStack;  // TODO move it somewhere
+  std::stack<std::string> functionNames;  // TODO move it somewhere
   int functionArgsCount = 0;
   std::stack<int> rankSpecStack;
   SymbolTable symbolTable;

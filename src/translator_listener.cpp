@@ -124,13 +124,22 @@ void TranslatorListener::exitVariableDeclaration(
 
 void TranslatorListener::enterFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
-  functionParams.clear();
+  functionParams.push({});
 }
 
 void TranslatorListener::exitFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
+  if (symbolTable.currentScopeFind(functionNames.top()) !=
+      symbolTable.getCurrentScope().end()) {
+    errorHandler.reportError(
+        utils::getLineCol(ctx),
+        "Identifier '" + functionNames.top() + "' already in use");
+    inErrorMode = true;
+    return;
+  }
+
   std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
-  for (const auto& param : functionParams) {
+  for (const auto& param : functionParams.top()) {
     types::CloningVisitor cv;
     param.type.getRoot().accept(cv);
     typeNodes.push_back(cv.getClone());
@@ -140,31 +149,31 @@ void TranslatorListener::exitFunctionDeclaration(
   types::Type functionType(std::make_unique<types::FunctionNode>(
       std::move(typeNodes), cv.getClone()));
   symbolTable.insertInCurrentScope(std::make_pair(
-      functionName,
-      Value(functionName, functionType, Value::Category::MEMORY)));
-  functionParams.clear();
+      functionNames.top(),
+      Value(functionNames.top(), functionType, Value::Category::MEMORY)));
+  functionParams.pop();
   retTypesStack.pop();
+  functionNames.pop();
 }
 
 void TranslatorListener::exitFunctionName(
     Lexy2Parser::FunctionNameContext* ctx) {
-  functionName = ctx->IDENTIFIER()->getText();
+  functionNames.push(ctx->IDENTIFIER()->getText());
 }
 
 void TranslatorListener::exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) {
-  //retType = types::Type(std::move(currTypeNode));
   retTypesStack.push(types::Type(std::move(currTypeNode)));
 }
 
 void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
   auto paramName = ctx->IDENTIFIER()->getText();
-  functionParams.push_back(
+  functionParams.top().push_back(
       FunctionParam(paramName, types::Type(std::move(currTypeNode))));
 }
 
 void TranslatorListener::enterFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
-  symbolTable.enterNewScope();
+
   if (!retTypesStack.top().isLeaf()) {
     throw std::runtime_error("Not implemented");
   }
@@ -174,10 +183,13 @@ void TranslatorListener::enterFunctionBody(
   if (typeID == BOOL_TYPE_ID) {
     retLLVMType = LLVMGenerator::Type::I1;
   }
-  generator.createFunction(functionName, functionParams, retLLVMType);
+  generator.createFunction(
+      functionNames.top() + symbolTable.getCurrentScopeID(),
+      functionParams.top(), retLLVMType);
 
+  symbolTable.enterNewScope();
   // allocate memory for arguments
-  for (const auto& param : functionParams) {
+  for (const auto& param : functionParams.top()) {
     const auto& paramType = param.type;
     if (!paramType.isLeaf()) {
       throw std::runtime_error("Not implemented");

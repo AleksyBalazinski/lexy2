@@ -1,6 +1,6 @@
 #pragma once
 
-#include "llvm_generator.hpp"
+#include "code_gen/llvm_generator.hpp"
 #include "operations.hpp"
 #include "primitive_type.hpp"
 #include "types/type.hpp"
