@@ -9,22 +9,16 @@ class ArrayNode : public TypeNode {
   int dim;
 
  public:
-  virtual void accept(TypeVisitor& v) override {
-    child->accept(v);
-    v.visit(*this);
-  }
+  ArrayNode(int dim, std::unique_ptr<TypeNode> child);
 
-  virtual bool isLeaf() const override { return false; }
+  virtual void accept(TypeVisitor& v) const override;
 
-  virtual std::optional<int> getSimpleTypeId() const override { return {}; }
+  virtual bool isLeaf() const override;
 
-  ArrayNode(int dim, std::unique_ptr<TypeNode> child)
-      : dim(dim), child(std::move(child)) {}
+  virtual std::optional<int> getSimpleTypeId() const override;
 
-  virtual std::optional<TypeNode*> getChild() const override {
-    return child.get();
-  }
+  virtual std::optional<TypeNode*> getChild() const override;
 
-  int getDim() const { return dim; }
+  int getDim() const;
 };
 }  // namespace lexy2::types

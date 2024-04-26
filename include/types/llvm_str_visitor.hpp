@@ -1,28 +1,26 @@
 #pragma once
+#include <stdexcept>
 #include <string>
 #include "array_node.hpp"
+#include "function_node.hpp"
 #include "leaf_node.hpp"
 
 namespace lexy2::types {
 class LLVMStrVisitor : public TypeVisitor {
   std::string text;
+  bool boolAsI1;
 
  public:
-  virtual void visit(const ArrayNode& arrayType) override {
-    text = "[" + std::to_string(arrayType.getDim()) + " x " + text + "]";
-  }
+  LLVMStrVisitor(bool boolAsI1 = false);
 
-  virtual void visit(const LeafNode& LeafNode) override {
-    if (LeafNode.getPrimitiveType() == PrimitiveType::BOOL) {
-      text = "i8";
-      return;
-    }
-    text =
-        LLVMGenerator::getTypeString(toLLVMType(LeafNode.getPrimitiveType()));
-  }
+  virtual void visit(const ArrayNode& arrayType) override;
 
-  std::string getStr() const { return text; }
+  virtual void visit(const LeafNode& LeafNode) override;
 
-  void reset() { text = ""; }
+  virtual void visit(const FunctionNode& functionNode) override;
+
+  std::string getStr() const;
+
+  void reset();
 };
 }  // namespace lexy2::types

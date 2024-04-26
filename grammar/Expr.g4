@@ -62,7 +62,8 @@ primaryExpr:
 	literal			# fwd80
 	| '(' expr ')'	# Parens
 	| identifier	# fwd85
-	| elementAccess	# fwd90;
+	| elementAccess	# fwd90
+	| functionCall	# fwd100;
 
 identifier: IDENTIFIER;
 
@@ -74,3 +75,9 @@ literal:
 elementAccess: identifier elementIndex+;
 
 elementIndex: '[' expr ']';
+
+functionCall: identifier '(' exprList ')';
+
+exprList: functionArg | exprList ',' functionArg;
+
+functionArg: assignmentExpr;

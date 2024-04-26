@@ -2,11 +2,14 @@
 
 #include <optional>
 #include <sstream>
+#include <stack>
 #include <stdexcept>
 #include <string>
+#include <vector>
+#include "code_gen/graph.hpp"
 
 namespace lexy2 {
-
+class FunctionParam;
 class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
@@ -14,7 +17,15 @@ class LLVMGenerator {
   enum class RelName { EQ, NE, GE, LE, GT, LT };
 
  private:
+  std::string& getText() {
+    if (!activeFunctions.empty())
+      return activeFunctions.top()->text;
+    return text;
+  }
   std::string text;
+  std::stack<Node*> functionDefs;
+  std::stack<Node*> activeFunctions;
+  Graph graph;
   int reg = 1;
 
   int ifEndNumber = 0;
@@ -26,6 +37,8 @@ class LLVMGenerator {
   int whileEndNumber = 0;
 
   int arrayIndexNumber = 0;
+
+  int callRegisterNumber = 0;
 
   static std::string getOpPrefix(Type type, BinOpName op);
   static std::string getRelPrefix(Type type);
@@ -56,6 +69,14 @@ class LLVMGenerator {
 
   void createBranch(const std::string& dest);
   void createLabel(const std::string& label);
+
+  void createFunction(const std::string& functionName,
+                      const std::vector<FunctionParam>& params, Type retType);
+  void exitFunction();
+
+  void createReturn(Type type, const std::string& arg);
+  std::string createCall(const std::string& functionName,
+                         const std::vector<FunctionParam>& args, Type retType);
 
   std::string getIfThenLabel();
   std::string getIfEndLabel();

@@ -5,14 +5,17 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "Lexy2BaseListener.h"
+#include "code_gen/llvm_generator.hpp"
 #include "error_handler.hpp"
-#include "llvm_generator.hpp"
+#include "function_param.hpp"
 #include "operations.hpp"
 #include "symbol_table.hpp"
 #include "type_manager.hpp"
 #include "utils.hpp"
+
 namespace lexy2 {
 
 class TranslatorListener : public Lexy2BaseListener {
@@ -20,6 +23,11 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<std::string> basicBlockStack;
   std::stack<std::string> returnPointsStack;
   std::unique_ptr<types::TypeNode> currTypeNode;
+  std::stack<std::vector<FunctionParam>>
+      functionParams;                     // TODO move it somewhere
+  std::stack<types::Type> retTypesStack;  // TODO move it somewhere
+  std::stack<std::string> functionNames;  // TODO move it somewhere
+  int functionArgsCount = 0;
   std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
@@ -45,7 +53,24 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitPrintIntrinsic(Lexy2Parser::PrintIntrinsicContext* ctx) override;
 
-  void exitDeclStatement(Lexy2Parser::DeclStatementContext* ctx) override;
+  void exitVariableDeclaration(
+      Lexy2Parser::VariableDeclarationContext* ctx) override;
+
+  void enterFunctionDeclaration(
+      Lexy2Parser::FunctionDeclarationContext* ctx) override;
+  void exitFunctionDeclaration(
+      Lexy2Parser::FunctionDeclarationContext* ctx) override;
+
+  void exitFunctionName(Lexy2Parser::FunctionNameContext* ctx) override;
+
+  void exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) override;
+
+  void exitParam(Lexy2Parser::ParamContext* ctx) override;
+
+  void enterFunctionBody(Lexy2Parser::FunctionBodyContext* ctx) override;
+  void exitFunctionBody(Lexy2Parser::FunctionBodyContext* ctx) override;
+
+  void exitReturnStatement(Lexy2Parser::ReturnStatementContext* ctx) override;
 
   void enterCompoundStatement(
       Lexy2Parser::CompoundStatementContext* ctx) override;
@@ -112,6 +137,11 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitElementIndex(Lexy2Parser::ElementIndexContext* ctx) override;
 
   void exitType(Lexy2Parser::TypeContext* ctx) override {}
+
+  void enterFunctionCall(Lexy2Parser::FunctionCallContext* ctx) override;
+  void exitFunctionCall(Lexy2Parser::FunctionCallContext* ctx) override;
+
+  void exitFunctionArg(Lexy2Parser::FunctionArgContext* ctx) override;
 
   void exitArrayType(Lexy2Parser::ArrayTypeContext* ctx) override;
 

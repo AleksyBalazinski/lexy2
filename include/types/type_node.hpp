@@ -5,7 +5,7 @@
 namespace lexy2::types {
 class TypeNode {
  public:
-  virtual void accept(TypeVisitor& v) = 0;
+  virtual void accept(TypeVisitor& v) const = 0;
   virtual bool isLeaf() const = 0;
   virtual std::optional<int> getSimpleTypeId() const = 0;
   virtual std::optional<TypeNode*> getChild() const = 0;

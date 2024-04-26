@@ -8,13 +8,31 @@ statement:
 	| printStatement
 	| compoundStatement
 	| selectionStatement
-	| iterationStatement;
+	| iterationStatement
+	| returnStatement;
 
 exprStatement: expr ';';
 
 printStatement: '__print' expr ';' # printIntrinsic;
 
-declStatement: 'let' IDENTIFIER (':' type)? '=' expr ';';
+declStatement: variableDeclaration | functionDeclaration;
+
+variableDeclaration: 'let' IDENTIFIER (':' type)? '=' expr ';';
+
+functionDeclaration:
+	'fn' functionName '(' paramList ')' ('->' returnType)? functionBody;
+
+functionName: IDENTIFIER;
+
+returnType: type;
+
+paramList: param | paramList ',' param;
+
+param: IDENTIFIER ':' type;
+
+functionBody: '{' statement+ '}';
+
+returnStatement: 'return' expr ';';
 
 compoundStatement: '{' statement+ '}';
 

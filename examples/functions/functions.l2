@@ -1,0 +1,63 @@
+fn and(x: bool, y: bool) -> bool {
+    let result: bool = false;
+    if x {
+        if y {
+            result = true;
+        }
+    }
+    return result;
+}
+
+__print and(false, false);
+__print and(true, false);
+__print and(false, true);
+__print and(true, true);
+
+fn seq_sum(start: int, end: int, step: int) -> int {
+    let sum = 0;
+    let i = start;
+    while i <= end {
+        sum += i;
+        i += step;
+    }
+    return sum;
+}
+
+__print seq_sum(4, 13, 2);
+
+
+fn foo(start: int, end: int, step: int) -> int {
+    fn is_even(x: int) -> bool {
+        return x % 2 == 0;
+    }
+    fn is_odd(x: int) -> bool {
+        return x % 2 == 1;
+    }
+    let sum = 0;
+    let i = start;
+    while i <= end {
+        if is_even(i) {
+            sum += i;
+        }
+        if is_odd(i) {
+            sum += 2 * i;
+        }
+        i += step;
+    }
+    return sum;
+}
+
+__print foo(2, 14, 1);
+
+// x + a(x) = x + (x + b(x)) = x + (x + (x + 2)) = 3x + 2 
+fn very_nested(x: int) -> int {
+    fn a(x: int) -> int {
+        fn b(x: int) -> int {
+            return x + 2;
+        }
+        return x + b(x);
+    }
+    return x + a(x);
+}
+
+__print very_nested(1);
