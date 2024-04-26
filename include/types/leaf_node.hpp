@@ -9,18 +9,16 @@ class LeafNode : public TypeNode {
   PrimitiveType primitiveType;
 
  public:
-  LeafNode(PrimitiveType primitiveType) : primitiveType(primitiveType) {}
+  LeafNode(PrimitiveType primitiveType);
 
-  virtual void accept(TypeVisitor& v) const override { v.visit(*this); }
+  virtual void accept(TypeVisitor& v) const override;
 
-  virtual bool isLeaf() const override { return true; }
+  virtual bool isLeaf() const override;
 
-  virtual std::optional<int> getSimpleTypeId() const override {
-    return static_cast<int>(primitiveType);
-  }
+  virtual std::optional<int> getSimpleTypeId() const override;
 
-  virtual std::optional<TypeNode*> getChild() const override { return {}; }
+  virtual std::optional<TypeNode*> getChild() const override;
 
-  PrimitiveType getPrimitiveType() const { return primitiveType; }
+  PrimitiveType getPrimitiveType() const;
 };
 }  // namespace lexy2::types

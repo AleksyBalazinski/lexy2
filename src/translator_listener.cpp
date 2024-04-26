@@ -140,14 +140,10 @@ void TranslatorListener::exitFunctionDeclaration(
 
   std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
   for (const auto& param : functionParams.top()) {
-    types::CloningVisitor cv;
-    param.type.getRoot().accept(cv);
-    typeNodes.push_back(cv.getClone());
+    typeNodes.push_back(types::cloneNode(param.type.getRoot()));
   }
-  types::CloningVisitor cv;
-  retTypesStack.top().getRoot().accept(cv);
   types::Type functionType(std::make_unique<types::FunctionNode>(
-      std::move(typeNodes), cv.getClone()));
+      std::move(typeNodes), types::cloneNode(retTypesStack.top().getRoot())));
   symbolTable.insertInCurrentScope(std::make_pair(
       functionNames.top(),
       Value(functionNames.top(), functionType, Value::Category::MEMORY)));
@@ -208,8 +204,7 @@ void TranslatorListener::enterFunctionBody(
     }
 
     symbolTable.insertInCurrentScope(std::make_pair(
-        param.name,
-        Value(param.name, std::move(param.type), Value::Category::MEMORY)));
+        param.name, Value(param.name, param.type, Value::Category::MEMORY)));
   }
 
   // allocate memory for return variable
@@ -826,9 +821,8 @@ void TranslatorListener::exitFunctionCall(
   auto typeID = *functionNode.getReturnType()->getSimpleTypeId();
   auto callResult = generator.createCall(
       function.name, args, toLLVMType(static_cast<PrimitiveType>(typeID)));
-  types::CloningVisitor cv;
-  functionNode.getReturnType()->accept(cv);
-  valueStack.push(Value(callResult, cv.getClone()));
+  valueStack.push(
+      Value(callResult, types::cloneNode(*functionNode.getReturnType())));
 }
 
 void TranslatorListener::exitFunctionArg(Lexy2Parser::FunctionArgContext* ctx) {

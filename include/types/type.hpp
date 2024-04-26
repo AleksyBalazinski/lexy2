@@ -10,39 +10,26 @@ class Type {
   std::unique_ptr<TypeNode> root;
 
  public:
-  Type() : Type(nullptr) {}
-  Type(std::unique_ptr<TypeNode> root) : root(std::move(root)) {}
+  Type();
 
-  Type(const Type& other) {
-    CloningVisitor cloningVisitor;
-    other.applyVisitor(cloningVisitor);
-    root = cloningVisitor.getClone();
-  }
+  Type(std::unique_ptr<TypeNode> root);
 
-  Type& operator=(const Type& other) {
-    CloningVisitor cloningVisitor;
-    other.applyVisitor(cloningVisitor);
-    root = cloningVisitor.getClone();
-    return *this;
-  }
+  Type(const Type& other);
 
-  void applyVisitor(TypeVisitor& v) const { root->accept(v); }
+  Type& operator=(const Type& other);
 
-  bool isLeaf() const { return root->isLeaf(); }
+  Type(Type&& other);
 
-  std::optional<int> getSimpleTypeId() const { return root->getSimpleTypeId(); }
+  void applyVisitor(TypeVisitor& v) const;
 
-  std::optional<Type> getPeeledType() const {
-    auto child = root->getChild();
-    if (!child.has_value()) {
-      return {};
-    }
+  bool isLeaf() const;
 
-    CloningVisitor cloningVisitor;
-    (*child)->accept(cloningVisitor);
-    return cloningVisitor.getClone();
-  }
+  std::optional<int> getSimpleTypeId() const;
+
+  std::optional<Type> getPeeledType() const;
 
   const TypeNode& getRoot() const { return *root; }
 };
+
+std::unique_ptr<TypeNode> cloneNode(const TypeNode& node);
 }  // namespace lexy2::types
