@@ -60,9 +60,6 @@ Value TranslatorListener::modRegisters(const Value& left, const Value& right) {
 
 Value TranslatorListener::castRegister(const Value& value,
                                        const types::Type& targetType) {
-  if (!value.type.getSimpleTypeId().has_value() ||
-      !targetType.getSimpleTypeId())
-    throw std::invalid_argument("cast registers");
 
   int typeID = *value.type.getSimpleTypeId();
   int targetTypeID = *targetType.getSimpleTypeId();

@@ -52,6 +52,15 @@ void TranslatorListener::exitPrintIntrinsic(
   }
 }
 
+bool areSameType(const types::Type& t1, const types::Type& t2) {
+  if (!t1.getSimpleTypeId().has_value() || !t2.getSimpleTypeId().has_value()) {
+    throw std::invalid_argument(
+        "Conversions between non-simple types not implemented");
+  }
+
+  return *t1.getSimpleTypeId() == *t2.getSimpleTypeId();
+}
+
 void TranslatorListener::exitVariableDeclaration(
     Lexy2Parser::VariableDeclarationContext* ctx) {
   if (inErrorMode)
@@ -77,11 +86,11 @@ void TranslatorListener::exitVariableDeclaration(
     return;
   }
   if (currTypeNode != nullptr) {
-    if (currTypeNode->isLeaf()) {
-      initializer =
-          castRegister(initializer, types::Type(std::move(currTypeNode)));
+    auto targetType = types::Type(std::move(currTypeNode));
+    if (targetType.isLeaf()) {
+      if (!areSameType(initializer.type, targetType))
+        initializer = castRegister(initializer, targetType);
     } else {
-      auto targetType = types::Type(std::move(currTypeNode));
       types::LLVMStrVisitor strVisitor;
       targetType.applyVisitor(strVisitor);
       auto typeStr = strVisitor.getStr();
@@ -651,7 +660,8 @@ void TranslatorListener::exitCast(Lexy2Parser::CastContext* ctx) {
   const auto targetTypeStr = ctx->TYPE_ID()->getText();
   auto targetType = types::Type(std::make_unique<types::LeafNode>(
       static_cast<PrimitiveType>(typeIDs[targetTypeStr])));
-  valueStack.push(castRegister(value, targetType));
+  if (!areSameType(value.type, targetType))
+    valueStack.push(castRegister(value, targetType));
 }
 
 void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
