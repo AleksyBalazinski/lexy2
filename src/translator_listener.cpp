@@ -89,9 +89,7 @@ Error<std::string> TranslatorListener::declareVariable(
     loadedInitializer.name = generator.extI1toI8(loadedInitializer.name);
   }
 
-  types::LLVMStrVisitor strVisitor;
-  loadedInitializer.type.applyVisitor(strVisitor);
-  auto typeStr = strVisitor.getStr();
+  auto typeStr = loadedInitializer.type.getLLVMString(false);
 
   generator.createCustomDeclaration(typeStr, scopedIdentifier);
   if (!declaredType->isArray()) {
@@ -766,9 +764,7 @@ void TranslatorListener::exitElementIndex(
     idx.name = generator.extI32toI64(idx.name);
   }
 
-  types::LLVMStrVisitor strVisitor;
-  arr.type.applyVisitor(strVisitor);
-  auto typeStr = strVisitor.getStr();
+  auto typeStr = arr.type.getLLVMString(false);
 
   auto arrayIdx = generator.getElementPtrInBounds(
       arr.name, idx.name, typeStr,

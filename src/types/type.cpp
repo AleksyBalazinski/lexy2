@@ -47,6 +47,11 @@ std::optional<Type> Type::getPeeledType() const {
   return cloningVisitor.getClone();
 }
 
+std::string Type::getLLVMString(bool boolAsI1) const {
+  LLVMStrVisitor strVisitor(boolAsI1);
+  this->applyVisitor(strVisitor);
+  return strVisitor.getStr();
+}
 std::unique_ptr<TypeNode> cloneNode(const TypeNode& node) {
   CloningVisitor cv;
   node.accept(cv);
