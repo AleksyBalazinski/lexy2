@@ -24,6 +24,8 @@ class Type {
 
   bool isLeaf() const;
 
+  bool isArray() const;
+
   std::optional<int> getSimpleTypeId() const;
 
   std::optional<Type> getPeeledType() const;

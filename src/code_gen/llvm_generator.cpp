@@ -147,6 +147,15 @@ void LLVMGenerator::createAssignment(Type type, const std::string& identifier,
                ", " + getTypeString(type) + "* " + idString + "\n";
 }
 
+void LLVMGenerator::createCustomAssignment(const std::string& typeStr,
+                                           const std::string& identifier,
+                                           const std::string& value,
+                                           bool isInternalPtr) {
+  std::string idString = (isInternalPtr ? "" : "%") + identifier;
+  getText() += getIndent() + "store " + typeStr + " " + value + ", " + typeStr +
+               "* " + idString + "\n";
+}
+
 void LLVMGenerator::createDeclaration(Type type, const std::string& arg) {
   getText() +=
       getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";

@@ -1,9 +1,18 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace lexy2 {
+
+struct SourceCodePos {
+  SourceCodePos(const std::pair<int, int>& pos)
+      : line(pos.first), col(pos.second) {}
+
+  int line;
+  int col;
+};
 
 class ErrorHandler {
   struct Error {
@@ -26,6 +35,8 @@ class ErrorHandler {
   void reportError(int line, int column, std::string msg);
 
   void reportError(std::pair<int, int> pos, std::string msg);
+
+  void reportError(const SourceCodePos& pos, const std::string& msg);
 
   std::string getErrors();
 

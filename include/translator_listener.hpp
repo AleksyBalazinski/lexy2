@@ -9,6 +9,7 @@
 
 #include "Lexy2BaseListener.h"
 #include "code_gen/llvm_generator.hpp"
+#include "error.hpp"
 #include "error_handler.hpp"
 #include "function_param.hpp"
 #include "operations.hpp"
@@ -40,7 +41,6 @@ class TranslatorListener : public Lexy2BaseListener {
 
   ErrorHandler& errorHandler;
   bool inErrorMode = false;
-  bool encounteredErrors = false;
 
  public:
   TranslatorListener(ErrorHandler& errorHandler);
@@ -179,5 +179,9 @@ class TranslatorListener : public Lexy2BaseListener {
                         Lexy2Parser::AssignContext* ctx);
   void assignToInternalPtr(const Value& lhs, Value& value,
                            Lexy2Parser::AssignContext* ctx);
+
+  Error<std::string> declareVariable(
+      const std::string& identifier, const Value& intiailizer,
+      const std::optional<types::Type> declaredType);
 };
 }  // namespace lexy2

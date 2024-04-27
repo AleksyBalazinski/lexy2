@@ -28,6 +28,10 @@ bool Type::isLeaf() const {
   return root->isLeaf();
 }
 
+bool Type::isArray() const {
+  return dynamic_cast<ArrayNode*>(root.get()) != nullptr;
+}
+
 std::optional<int> Type::getSimpleTypeId() const {
   return root->getSimpleTypeId();
 }
