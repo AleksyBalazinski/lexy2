@@ -10,12 +10,6 @@ void ErrorHandler::reportError(std::pair<int, int> pos, std::string msg) {
   reportError(line, col, msg);
 }
 
-void ErrorHandler::reportError(const SourceCodePos& pos,
-                               const std::string& msg) {
-  auto [line, col] = pos;
-  reportError(line, col, msg);
-}
-
 std::string ErrorHandler::getErrors() {
   std::string report;
   for (const auto& err : errors) {
