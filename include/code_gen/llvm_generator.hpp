@@ -57,6 +57,11 @@ class LLVMGenerator {
   void createAssignment(Type type, const std::string& identifier,
                         const std::string& value, bool isInternalPtr = false);
 
+  void createCustomAssignment(const std::string& typeStr,
+                              const std::string& identifier,
+                              const std::string& value,
+                              bool isInternalPtr = false);
+
   void createDeclaration(Type type, const std::string& arg);
   void createCustomDeclaration(const std::string& typeString,
                                const std::string& arg);

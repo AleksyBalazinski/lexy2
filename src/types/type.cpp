@@ -28,6 +28,10 @@ bool Type::isLeaf() const {
   return root->isLeaf();
 }
 
+bool Type::isArray() const {
+  return dynamic_cast<ArrayNode*>(root.get()) != nullptr;
+}
+
 std::optional<int> Type::getSimpleTypeId() const {
   return root->getSimpleTypeId();
 }
@@ -43,6 +47,11 @@ std::optional<Type> Type::getPeeledType() const {
   return cloningVisitor.getClone();
 }
 
+std::string Type::getLLVMString(bool boolAsI1) const {
+  LLVMStrVisitor strVisitor(boolAsI1);
+  this->applyVisitor(strVisitor);
+  return strVisitor.getStr();
+}
 std::unique_ptr<TypeNode> cloneNode(const TypeNode& node) {
   CloningVisitor cv;
   node.accept(cv);

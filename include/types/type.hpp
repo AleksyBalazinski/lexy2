@@ -2,6 +2,7 @@
 #include <memory>
 #include <optional>
 #include "cloning_visitor.hpp"
+#include "llvm_str_visitor.hpp"
 #include "type_node.hpp"
 #include "type_visitor.hpp"
 
@@ -24,11 +25,15 @@ class Type {
 
   bool isLeaf() const;
 
+  bool isArray() const;
+
   std::optional<int> getSimpleTypeId() const;
 
   std::optional<Type> getPeeledType() const;
 
   const TypeNode& getRoot() const { return *root; }
+
+  std::string getLLVMString(bool boolAsI1) const;
 };
 
 std::unique_ptr<TypeNode> cloneNode(const TypeNode& node);

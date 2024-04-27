@@ -147,6 +147,15 @@ void LLVMGenerator::createAssignment(Type type, const std::string& identifier,
                ", " + getTypeString(type) + "* " + idString + "\n";
 }
 
+void LLVMGenerator::createCustomAssignment(const std::string& typeStr,
+                                           const std::string& identifier,
+                                           const std::string& value,
+                                           bool isInternalPtr) {
+  std::string idString = (isInternalPtr ? "" : "%") + identifier;
+  getText() += getIndent() + "store " + typeStr + " " + value + ", " + typeStr +
+               "* " + idString + "\n";
+}
+
 void LLVMGenerator::createDeclaration(Type type, const std::string& arg) {
   getText() +=
       getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
@@ -196,16 +205,13 @@ void LLVMGenerator::createFunction(const std::string& functionName,
 
   const char* sep = "";
   std::string paramsStr;
-  types::LLVMStrVisitor strVisitor(true);
   for (const auto& param : params) {
     const auto& name = param.name;
     const auto& type = param.type;
     if (!type.isLeaf()) {
       throw std::runtime_error("Not implemented");
     }
-    type.applyVisitor(strVisitor);
-    auto typeStr = strVisitor.getStr();
-    strVisitor.reset();
+    auto typeStr = type.getLLVMString(true);
     paramsStr += sep + typeStr + " noundef %" + name;
     sep = ", ";
   }
@@ -237,12 +243,9 @@ std::string LLVMGenerator::createCall(const std::string& functionName,
                                       const std::vector<FunctionParam>& args,
                                       Type retType) {
   std::string argsString;
-  types::LLVMStrVisitor strVisitor(true);
   const char* sep = "";
   for (const auto& arg : args) {
-    arg.type.applyVisitor(strVisitor);
-    argsString += sep + strVisitor.getStr() + " noundef " + arg.name;
-    strVisitor.reset();
+    argsString += sep + arg.type.getLLVMString(true) + " noundef " + arg.name;
     sep = ", ";
   }
   auto callReg = getNumberedLabel("call", callRegisterNumber);

@@ -26,7 +26,7 @@ struct Value {
   types::Type type;
   Category category;
 
-  inline bool isInMemory() {
+  inline bool isInMemory() const {
     return category == Category::MEMORY || category == Category::INTERNAL_PTR;
   }
 };

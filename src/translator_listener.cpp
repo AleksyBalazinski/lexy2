@@ -15,7 +15,6 @@ TranslatorListener::TranslatorListener(ErrorHandler& errorHandler)
 
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
   if (inErrorMode) {  // synchronize
-    encounteredErrors = true;
     inErrorMode = false;
     while (!valueStack.empty()) {
       valueStack.pop();
@@ -52,6 +51,59 @@ void TranslatorListener::exitPrintIntrinsic(
   }
 }
 
+bool areSameType(const types::Type& t1, const types::Type& t2) {
+  if (!t1.getSimpleTypeId().has_value() || !t2.getSimpleTypeId().has_value()) {
+    throw std::invalid_argument(
+        "Conversions between non-simple types not implemented");
+  }
+
+  return *t1.getSimpleTypeId() == *t2.getSimpleTypeId();
+}
+
+Error<std::string> TranslatorListener::declareVariable(
+    const std::string& identifier, const Value& initializer,
+    const std::optional<types::Type> declaredType) {
+  Value loadedInitializer = initializer;
+  if (initializer.isInMemory()) {
+    loadedInitializer = load(initializer);
+  }
+  if (symbolTable.currentScopeFind(identifier) !=
+      symbolTable.getCurrentScope().end()) {
+    return error("Identifier '" + identifier + "' already in use");
+  }
+
+  if (declaredType.has_value()) {
+    if (declaredType->isLeaf()) {
+      if (!areSameType(loadedInitializer.type, *declaredType)) {
+        loadedInitializer = castRegister(loadedInitializer, *declaredType);
+      }
+    } else if (declaredType->isArray()) {
+      loadedInitializer.type = *declaredType;
+    }
+  }
+
+  const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
+
+  if (loadedInitializer.type.isLeaf() &&
+      loadedInitializer.type.getSimpleTypeId() == BOOL_TYPE_ID) {
+    loadedInitializer.name = generator.extI1toI8(loadedInitializer.name);
+  }
+
+  auto typeStr = loadedInitializer.type.getLLVMString(false);
+
+  generator.createCustomDeclaration(typeStr, scopedIdentifier);
+  if (!declaredType->isArray()) {
+    generator.createCustomAssignment(typeStr, scopedIdentifier,
+                                     loadedInitializer.name);
+  }
+
+  symbolTable.insertInCurrentScope(std::make_pair(
+      identifier,
+      Value(identifier, loadedInitializer.type, Value::Category::MEMORY)));
+
+  return {};
+}
+
 void TranslatorListener::exitVariableDeclaration(
     Lexy2Parser::VariableDeclarationContext* ctx) {
   if (inErrorMode)
@@ -66,60 +118,19 @@ void TranslatorListener::exitVariableDeclaration(
   }
   auto initializer = std::move(valueStack.top());
   valueStack.pop();
-  if (initializer.isInMemory()) {
-    initializer = load(initializer);
+
+  std::optional<types::Type> declaredType;
+  if (currTypeNode != nullptr) {
+    declaredType = types::Type(std::move(currTypeNode));
+  } else {
+    declaredType = {};
   }
-  if (symbolTable.currentScopeFind(identifier) !=
-      symbolTable.getCurrentScope().end()) {
-    errorHandler.reportError(utils::getLineCol(ctx),
-                             "Identifier '" + identifier + "' already in use");
+  auto err = declareVariable(identifier, initializer, declaredType);
+  if (err) {
+    errorHandler.reportError(utils::getLineCol(ctx), err.message());
     inErrorMode = true;
     return;
   }
-  if (currTypeNode != nullptr) {
-    if (currTypeNode->isLeaf()) {
-      initializer =
-          castRegister(initializer, types::Type(std::move(currTypeNode)));
-    } else {
-      auto targetType = types::Type(std::move(currTypeNode));
-      types::LLVMStrVisitor strVisitor;
-      targetType.applyVisitor(strVisitor);
-      auto typeStr = strVisitor.getStr();
-      auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
-
-      generator.createCustomDeclaration(typeStr, scopedIdentifier);
-      symbolTable.insertInCurrentScope(std::make_pair(
-          identifier,
-          Value(identifier, std::move(targetType), Value::Category::MEMORY)));
-
-      return;
-    }
-  }
-
-  const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
-  LLVMGenerator::Type type;
-  if (initializer.type.isLeaf()) {
-    int typeID = *initializer.type.getSimpleTypeId();
-    if (typeID == INT_TYPE_ID) {
-      type = LLVMGenerator::Type::I32;
-    }
-    if (typeID == DOUBLE_TYPE_ID) {
-      type = LLVMGenerator::Type::DOUBLE;
-    }
-    if (typeID == BOOL_TYPE_ID) {
-      initializer.name = generator.extI1toI8(initializer.name);
-      type = LLVMGenerator::Type::I8;
-    }
-    if (typeID == FLOAT_TYPE_ID) {
-      type = LLVMGenerator::Type::FLOAT;
-    }
-  }
-
-  generator.createDeclaration(type, scopedIdentifier);
-  generator.createAssignment(type, scopedIdentifier, initializer.name);
-  symbolTable.insertInCurrentScope(std::make_pair(
-      identifier,
-      Value(identifier, std::move(initializer.type), Value::Category::MEMORY)));
 }
 
 void TranslatorListener::enterFunctionDeclaration(
@@ -651,7 +662,8 @@ void TranslatorListener::exitCast(Lexy2Parser::CastContext* ctx) {
   const auto targetTypeStr = ctx->TYPE_ID()->getText();
   auto targetType = types::Type(std::make_unique<types::LeafNode>(
       static_cast<PrimitiveType>(typeIDs[targetTypeStr])));
-  valueStack.push(castRegister(value, targetType));
+  if (!areSameType(value.type, targetType))
+    valueStack.push(castRegister(value, targetType));
 }
 
 void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
@@ -752,9 +764,7 @@ void TranslatorListener::exitElementIndex(
     idx.name = generator.extI32toI64(idx.name);
   }
 
-  types::LLVMStrVisitor strVisitor;
-  arr.type.applyVisitor(strVisitor);
-  auto typeStr = strVisitor.getStr();
+  auto typeStr = arr.type.getLLVMString(false);
 
   auto arrayIdx = generator.getElementPtrInBounds(
       arr.name, idx.name, typeStr,

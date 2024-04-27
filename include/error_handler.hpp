@@ -1,10 +1,10 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace lexy2 {
-
 class ErrorHandler {
   struct Error {
     Error(int line, int column, std::string msg)
