@@ -1,0 +1,7 @@
+let a = false;
+let b = true;
+let c = false;
+let d = true;
+
+__print a | b & c ^ d; // a | ((b & c) ^ d) = false | (false ^ true) = false | true = true
+__print !a | b & c ^ !d; // !a | ((b & c) ^ !d) = true | (false ^ false) = true | false = true

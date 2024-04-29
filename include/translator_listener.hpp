@@ -108,9 +108,11 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitAssign(Lexy2Parser::AssignContext* ctx) override;
 
-  void exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) override {}
+  void exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) override;
 
-  void exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) override {}
+  void exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) override;
+
+  void exitLogicalXor(Lexy2Parser::LogicalXorContext* ctx) override;
 
   void exitEquality(Lexy2Parser::EqualityContext* ctx) override;
 

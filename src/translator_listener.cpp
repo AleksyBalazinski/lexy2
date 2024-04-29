@@ -462,6 +462,93 @@ void TranslatorListener::exitAssign(Lexy2Parser::AssignContext* ctx) {
   }
 }
 
+void TranslatorListener::exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.type.getSimpleTypeId() != BOOL_TYPE_ID ||
+      right.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Both operands of '&' must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+
+  if (left.isInMemory()) {
+    left = load(left);
+  }
+  if (right.isInMemory()) {
+    right = load(right);
+  }
+
+  auto result = generator.createBinOp(
+      LLVMGenerator::BinOpName::AND,
+      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+      left.name, right.name);
+
+  valueStack.push(Value(result, types::Type(std::make_unique<types::LeafNode>(
+                                    PrimitiveType::BOOL))));
+}
+
+void TranslatorListener::exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.type.getSimpleTypeId() != BOOL_TYPE_ID ||
+      right.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Both operands of '|' must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+
+  if (left.isInMemory()) {
+    left = load(left);
+  }
+  if (right.isInMemory()) {
+    right = load(right);
+  }
+
+  auto result = generator.createBinOp(
+      LLVMGenerator::BinOpName::OR,
+      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+      left.name, right.name);
+
+  valueStack.push(Value(result, types::Type(std::make_unique<types::LeafNode>(
+                                    PrimitiveType::BOOL))));
+}
+
+void TranslatorListener::exitLogicalXor(Lexy2Parser::LogicalXorContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto [left, right] = utils::popTwo(valueStack);
+  if (left.type.getSimpleTypeId() != BOOL_TYPE_ID ||
+      right.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Both operands of '^' must be of boolean type");
+    inErrorMode = true;
+    return;
+  }
+
+  if (left.isInMemory()) {
+    left = load(left);
+  }
+  if (right.isInMemory()) {
+    right = load(right);
+  }
+
+  auto result = generator.createBinOp(
+      LLVMGenerator::BinOpName::XOR,
+      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+      left.name, right.name);
+
+  valueStack.push(Value(result, types::Type(std::make_unique<types::LeafNode>(
+                                    PrimitiveType::BOOL))));
+}
+
 void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
   if (inErrorMode)
     return;
@@ -692,6 +779,19 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
       return;
     }
     valueStack.push(plusRegister(value));
+  }
+  if (ctx->op->getText() == "!") {
+    if (value.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Unary operator '!' can only be applied to boolean argument");
+      inErrorMode = true;
+      return;
+    }
+
+    auto result = generator.createBinOp(LLVMGenerator::BinOpName::XOR,
+                                        value.type, value.name, "true");
+    valueStack.push(Value(result, value.type));
   }
 }
 
