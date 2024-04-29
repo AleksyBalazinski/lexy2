@@ -52,6 +52,15 @@ std::string Type::getLLVMString(bool boolAsI1) const {
   this->applyVisitor(strVisitor);
   return strVisitor.getStr();
 }
+
+bool Type::isInteral() const {
+  return root->isIntegral();
+}
+
+bool Type::isFloatingPoint() const {
+  return root->isFloatingPoint();
+}
+
 std::unique_ptr<TypeNode> cloneNode(const TypeNode& node) {
   CloningVisitor cv;
   node.accept(cv);

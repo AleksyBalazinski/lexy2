@@ -13,6 +13,14 @@ bool FunctionNode::isLeaf() const {
   return false;
 }
 
+bool FunctionNode::isIntegral() const {
+  return false;
+}
+
+bool FunctionNode::isFloatingPoint() const {
+  return false;
+}
+
 std::optional<int> FunctionNode::getSimpleTypeId() const {
   return {};
 }

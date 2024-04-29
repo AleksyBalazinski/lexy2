@@ -10,6 +10,10 @@
 
 namespace lexy2 {
 class FunctionParam;
+namespace types {
+class Type;
+}  // namespace types
+
 class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
@@ -41,34 +45,29 @@ class LLVMGenerator {
 
   int callRegisterNumber = 0;
 
-  static std::string getOpPrefix(Type type, BinOpName op);
-  static std::string getRelPrefix(Type type);
+  static std::string getOpPrefix(const types::Type& type, BinOpName op);
+  static std::string getRelPrefix(const types::Type& type);
   static std::string getOperationString(BinOpName op);
   static std::string getRelName(RelName relName);
-  static std::string getRelNamePrefix(RelName relName, Type type);
+  static std::string getRelNamePrefix(RelName relName, const types::Type& type);
   static std::string getIndent();
 
  public:
-  std::string createBinOp(BinOpName op, Type type, const std::string& arg1,
-                          const std::string& arg2);
+  std::string createBinOp(BinOpName op, const types::Type& type,
+                          const std::string& arg1, const std::string& arg2);
 
-  std::string createRel(Type type, RelName relName, const std::string& arg1,
-                        const std::string& arg2);
+  std::string createRel(const types::Type& type, RelName relName,
+                        const std::string& arg1, const std::string& arg2);
 
-  void createAssignment(Type type, const std::string& identifier,
-                        const std::string& value, bool isInternalPtr = false);
+  void createAssignment(const types::Type& type, const std::string& identifier,
+                        const std::string& value, bool boolAsI1,
+                        bool isInternalPtr = false);
 
-  void createCustomAssignment(const std::string& typeStr,
-                              const std::string& identifier,
-                              const std::string& value,
-                              bool isInternalPtr = false);
+  void createDeclaration(const types::Type& type, const std::string& arg,
+                         bool boolAsI1);
 
-  void createDeclaration(Type type, const std::string& arg);
-  void createCustomDeclaration(const std::string& typeString,
-                               const std::string& arg);
-
-  std::string createLoad(Type type, const std::string& id,
-                         bool isInternalPtr = false);
+  std::string createLoad(const types::Type& type, const std::string& id,
+                         bool boolAsI1, bool isInternalPtr = false);
 
   void createBranch(const std::string& cond, const std::string& ifTrue,
                     const std::string& ifFalse);

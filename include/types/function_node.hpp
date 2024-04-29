@@ -17,6 +17,10 @@ class FunctionNode : public TypeNode {
 
   virtual bool isLeaf() const override;
 
+  virtual bool isIntegral() const override;
+
+  virtual bool isFloatingPoint() const override;
+
   virtual std::optional<int> getSimpleTypeId() const override;
 
   virtual std::optional<TypeNode*> getChild() const override;

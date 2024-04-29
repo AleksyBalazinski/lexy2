@@ -34,6 +34,10 @@ class Type {
   const TypeNode& getRoot() const { return *root; }
 
   std::string getLLVMString(bool boolAsI1) const;
+
+  bool isInteral() const;
+
+  bool isFloatingPoint() const;
 };
 
 std::unique_ptr<TypeNode> cloneNode(const TypeNode& node);

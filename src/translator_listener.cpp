@@ -89,12 +89,12 @@ Error<std::string> TranslatorListener::declareVariable(
     loadedInitializer.name = generator.extI1toI8(loadedInitializer.name);
   }
 
-  auto typeStr = loadedInitializer.type.getLLVMString(false);
+  const auto& initializerType = loadedInitializer.type;
 
-  generator.createCustomDeclaration(typeStr, scopedIdentifier);
+  generator.createDeclaration(initializerType, scopedIdentifier, false);
   if (!declaredType->isArray()) {
-    generator.createCustomAssignment(typeStr, scopedIdentifier,
-                                     loadedInitializer.name);
+    generator.createAssignment(initializerType, scopedIdentifier,
+                               loadedInitializer.name, false);
   }
 
   symbolTable.insertInCurrentScope(std::make_pair(
@@ -139,39 +139,49 @@ void TranslatorListener::enterFunctionDeclaration(
   generator.enterFunction();
 }
 
-void TranslatorListener::exitFunctionDeclaration(
-    Lexy2Parser::FunctionDeclarationContext* ctx) {
+Error<std::string> TranslatorListener::declareFunction(
+    const std::string& functionName, const types::Type& retType,
+    const std::vector<FunctionParam>& functionParams) {
   if (symbolTable.currentScopeFind(functionNames.top()) !=
       symbolTable.getCurrentScope().end()) {
-    errorHandler.reportError(
-        utils::getLineCol(ctx),
-        "Identifier '" + functionNames.top() + "' already in use");
-    inErrorMode = true;
-    return;
+    return error("Identifier '" + functionNames.top() + "' already in use");
   }
 
-  if (!retTypesStack.top().isLeaf()) {
+  if (!retType.isLeaf()) {
     throw std::runtime_error("Not implemented");
   }
 
-  auto typeID = *retTypesStack.top().getSimpleTypeId();
+  auto typeID = *retType.getSimpleTypeId();
   auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
   if (typeID == BOOL_TYPE_ID) {
     retLLVMType = LLVMGenerator::Type::I1;
   }
-  generator.createFunction(
-      functionNames.top() + symbolTable.getCurrentScopeID(),
-      functionParams.top(), retLLVMType);
+  generator.createFunction(functionName + symbolTable.getCurrentScopeID(),
+                           functionParams, retLLVMType);
 
   std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
-  for (const auto& param : functionParams.top()) {
+  for (const auto& param : functionParams) {
     typeNodes.push_back(types::cloneNode(param.type.getRoot()));
   }
   types::Type functionType(std::make_unique<types::FunctionNode>(
-      std::move(typeNodes), types::cloneNode(retTypesStack.top().getRoot())));
+      std::move(typeNodes), types::cloneNode(retType.getRoot())));
   symbolTable.insertInCurrentScope(std::make_pair(
-      functionNames.top(),
-      Value(functionNames.top(), functionType, Value::Category::MEMORY)));
+      functionName,
+      Value(functionName, functionType, Value::Category::MEMORY)));
+
+  return {};
+}
+
+void TranslatorListener::exitFunctionDeclaration(
+    Lexy2Parser::FunctionDeclarationContext* ctx) {
+  auto err = declareFunction(functionNames.top(), retTypesStack.top(),
+                             functionParams.top());
+  if (err) {
+    errorHandler.reportError(utils::getLineCol(ctx), err.message());
+    inErrorMode = true;
+    return;
+  }
+
   functionParams.pop();
   retTypesStack.pop();
   functionNames.pop();
@@ -204,15 +214,14 @@ void TranslatorListener::enterFunctionBody(
     }
     auto typeID = *paramType.getSimpleTypeId();
     const auto scopedIdentifier = param.name + symbolTable.getCurrentScopeID();
-    auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
     if (typeID == BOOL_TYPE_ID) {
       auto extParam = generator.extI1toI8("%" + param.name);
-      llvmType = LLVMGenerator::Type::I8;
-      generator.createDeclaration(llvmType, scopedIdentifier);
-      generator.createAssignment(llvmType, scopedIdentifier, extParam);
+      generator.createDeclaration(paramType, scopedIdentifier, false);
+      generator.createAssignment(paramType, scopedIdentifier, extParam, false);
     } else {
-      generator.createDeclaration(llvmType, scopedIdentifier);
-      generator.createAssignment(llvmType, scopedIdentifier, "%" + param.name);
+      generator.createDeclaration(paramType, scopedIdentifier, false);
+      generator.createAssignment(paramType, scopedIdentifier, "%" + param.name,
+                                 false);
     }
 
     symbolTable.insertInCurrentScope(std::make_pair(
@@ -221,11 +230,7 @@ void TranslatorListener::enterFunctionBody(
 
   // allocate memory for return variable
   auto typeID = *retTypesStack.top().getSimpleTypeId();
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  if (typeID == BOOL_TYPE_ID) {
-    llvmType = LLVMGenerator::Type::I8;
-  }
-  generator.createDeclaration(llvmType, "retVal");
+  generator.createDeclaration(retTypesStack.top(), "retVal", false);
 }
 
 void TranslatorListener::exitFunctionBody(
@@ -233,7 +238,7 @@ void TranslatorListener::exitFunctionBody(
   symbolTable.leaveScope();
   auto typeID = *retTypesStack.top().getSimpleTypeId();
   auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  auto loaded = generator.createLoad(llvmType, "retVal");
+  auto loaded = generator.createLoad(retTypesStack.top(), "retVal", true);
   generator.createReturn(llvmType, loaded);
 }
 
@@ -260,13 +265,11 @@ void TranslatorListener::exitReturnStatement(
   }
 
   auto typeID = *value.type.getSimpleTypeId();
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   if (typeID == BOOL_TYPE_ID) {
     value.name = generator.extI1toI8(value.name);
-    llvmType = LLVMGenerator::Type::I8;
   }
 
-  generator.createAssignment(llvmType, "retVal", value.name);
+  generator.createAssignment(value.type, "retVal", value.name, false);
 }
 
 void TranslatorListener::enterCompoundStatement(

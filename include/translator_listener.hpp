@@ -183,5 +183,9 @@ class TranslatorListener : public Lexy2BaseListener {
   Error<std::string> declareVariable(
       const std::string& identifier, const Value& intiailizer,
       const std::optional<types::Type> declaredType);
+
+  Error<std::string> declareFunction(
+      const std::string& functionName, const types::Type& retType,
+      const std::vector<FunctionParam>& functionParams);
 };
 }  // namespace lexy2
