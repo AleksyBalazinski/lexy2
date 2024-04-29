@@ -136,6 +136,7 @@ void TranslatorListener::exitVariableDeclaration(
 void TranslatorListener::enterFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
   functionParams.push({});
+  generator.enterFunction();
 }
 
 void TranslatorListener::exitFunctionDeclaration(
@@ -149,6 +150,19 @@ void TranslatorListener::exitFunctionDeclaration(
     return;
   }
 
+  if (!retTypesStack.top().isLeaf()) {
+    throw std::runtime_error("Not implemented");
+  }
+
+  auto typeID = *retTypesStack.top().getSimpleTypeId();
+  auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
+  if (typeID == BOOL_TYPE_ID) {
+    retLLVMType = LLVMGenerator::Type::I1;
+  }
+  generator.createFunction(
+      functionNames.top() + symbolTable.getCurrentScopeID(),
+      functionParams.top(), retLLVMType);
+
   std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
   for (const auto& param : functionParams.top()) {
     typeNodes.push_back(types::cloneNode(param.type.getRoot()));
@@ -161,6 +175,7 @@ void TranslatorListener::exitFunctionDeclaration(
   functionParams.pop();
   retTypesStack.pop();
   functionNames.pop();
+  generator.exitFunction();
 }
 
 void TranslatorListener::exitFunctionName(
@@ -180,20 +195,6 @@ void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
 
 void TranslatorListener::enterFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
-
-  if (!retTypesStack.top().isLeaf()) {
-    throw std::runtime_error("Not implemented");
-  }
-
-  auto typeID = *retTypesStack.top().getSimpleTypeId();
-  auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  if (typeID == BOOL_TYPE_ID) {
-    retLLVMType = LLVMGenerator::Type::I1;
-  }
-  generator.createFunction(
-      functionNames.top() + symbolTable.getCurrentScopeID(),
-      functionParams.top(), retLLVMType);
-
   symbolTable.enterNewScope();
   // allocate memory for arguments
   for (const auto& param : functionParams.top()) {
@@ -219,6 +220,7 @@ void TranslatorListener::enterFunctionBody(
   }
 
   // allocate memory for return variable
+  auto typeID = *retTypesStack.top().getSimpleTypeId();
   auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   if (typeID == BOOL_TYPE_ID) {
     llvmType = LLVMGenerator::Type::I8;
@@ -233,7 +235,6 @@ void TranslatorListener::exitFunctionBody(
   auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   auto loaded = generator.createLoad(llvmType, "retVal");
   generator.createReturn(llvmType, loaded);
-  generator.exitFunction();
 }
 
 void TranslatorListener::exitReturnStatement(

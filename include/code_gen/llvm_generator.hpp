@@ -22,6 +22,7 @@ class LLVMGenerator {
       return activeFunctions.top()->text;
     return text;
   }
+  std::string& getHeader() { return activeFunctions.top()->header; }
   std::string text;
   std::stack<Node*> functionDefs;
   std::stack<Node*> activeFunctions;
@@ -78,6 +79,7 @@ class LLVMGenerator {
   void createFunction(const std::string& functionName,
                       const std::vector<FunctionParam>& params, Type retType);
   void exitFunction();
+  void enterFunction();
 
   void createReturn(Type type, const std::string& arg);
   std::string createCall(const std::string& functionName,

@@ -194,15 +194,6 @@ void LLVMGenerator::createLabel(const std::string& label) {
 void LLVMGenerator::createFunction(const std::string& functionName,
                                    const std::vector<FunctionParam>& params,
                                    Type retType) {
-  reg = 1;
-  auto node = std::make_unique<Node>();
-  if (!functionDefs.empty()) {
-    functionDefs.top()->neighbors.push_back(node.get());
-  }
-  functionDefs.push(node.get());
-  activeFunctions.push(node.get());
-  graph.insertNode(std::move(node));
-
   const char* sep = "";
   std::string paramsStr;
   for (const auto& param : params) {
@@ -215,8 +206,8 @@ void LLVMGenerator::createFunction(const std::string& functionName,
     paramsStr += sep + typeStr + " noundef %" + name;
     sep = ", ";
   }
-  getText() += "define dso_local " + getTypeString(retType) + " @" +
-               functionName + "(" + paramsStr + ") #0 {\n";
+  getHeader() += "define dso_local " + getTypeString(retType) + " @" +
+                 functionName + "(" + paramsStr + ") #0 {\n";
 }
 
 void LLVMGenerator::exitFunction() {
@@ -233,6 +224,17 @@ void LLVMGenerator::exitFunction() {
       functionDefs.top()->ttl--;
     }
   }
+}
+
+void LLVMGenerator::enterFunction() {
+  reg = 1;
+  auto node = std::make_unique<Node>();
+  if (!functionDefs.empty()) {
+    functionDefs.top()->neighbors.push_back(node.get());
+  }
+  functionDefs.push(node.get());
+  activeFunctions.push(node.get());
+  graph.insertNode(std::move(node));
 }
 
 void LLVMGenerator::createReturn(Type type, const std::string& arg) {
@@ -391,7 +393,7 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
   for (auto it = orderedFunctions.rbegin(); it != orderedFunctions.rend();
        ++it) {
     const auto& funDef = *it;
-    functionDefinitions += funDef->text;
+    functionDefinitions += funDef->header + funDef->text;
   }
   code += functionDefinitions;
   code += "define dso_local i32 @main() #0 {\n";

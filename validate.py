@@ -20,11 +20,15 @@ def get_expected(dir):
 
 def get_output(source_location, show=False):
     lexy2_process = subprocess.run(lexy2 + " " + source_location, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if(lexy2_process.returncode != 0):
+        print("lexy2 exited with code", lexy2_process.returncode)
     lexy2_stderr = lexy2_process.stderr
     if(len(lexy2_stderr) > 0 and show):
          print(lexy2_stderr)
         
     clang_process = subprocess.run(clang + " " + source_location[:-3] + ".ll", stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if(clang_process.returncode != 0):
+        print("clang exited with code", clang_process.returncode)
     clang_stderr = clang_process.stderr
     if(len(clang_stderr) > 0 and show):
         print(clang_stderr)

@@ -7,6 +7,7 @@
 namespace lexy2 {
 struct Node {
   std::vector<Node*> neighbors;
+  std::string header;
   std::string text;
   bool visited = false;
   int ttl;
