@@ -7,6 +7,8 @@ class TypeNode {
  public:
   virtual void accept(TypeVisitor& v) const = 0;
   virtual bool isLeaf() const = 0;
+  virtual bool isIntegral() const = 0;
+  virtual bool isFloatingPoint() const = 0;
   virtual std::optional<int> getSimpleTypeId() const = 0;
   virtual std::optional<TypeNode*> getChild() const = 0;
 };

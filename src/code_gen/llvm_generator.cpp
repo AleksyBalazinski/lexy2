@@ -1,66 +1,38 @@
 #include "code_gen/llvm_generator.hpp"
 #include <sstream>
 #include "code_gen/topo_sorter.hpp"
-#include "function_param.hpp"
 #include "types/llvm_str_visitor.hpp"
-#include "types/type.hpp"
 #include "utils.hpp"
 
 namespace lexy2 {
-std::string LLVMGenerator::getTypeString(Type type) {
-  switch (type) {
-    case Type::I32:
-      return "i32";
-    case Type::I8:
-      return "i8";
-    case Type::DOUBLE:
-      return "double";
-    case Type::FLOAT:
-      return "float";
-    case Type::I1:
-      return "i1";
-    default:
-      return "";
-  }
-}
-
-std::string LLVMGenerator::getOpPrefix(Type type, BinOpName op) {
+std::string LLVMGenerator::getOpPrefix(const types::Type& type, BinOpName op) {
   if (op != BinOpName::DIV && op != BinOpName::REM) {
-    switch (type) {
-      case Type::I32:
-      case Type::I8:
-        return "";
-      case Type::DOUBLE:
-      case Type::FLOAT:
-        return "f";
-      default:
-        return "";
+    if (type.isInteral()) {
+      return "";
     }
+    if (type.isFloatingPoint()) {
+      return "f";
+    }
+    return "";
   } else {
-    switch (type) {
-      case Type::I32:
-      case Type::I8:
-        return "s";
-      case Type::DOUBLE:
-      case Type::FLOAT:
-        return "f";
-      default:
-        return "";
+    if (type.isInteral()) {
+      return "s";
     }
+    if (type.isFloatingPoint()) {
+      return "f";
+    }
+    return "";
   }
 }
 
-std::string LLVMGenerator::getRelPrefix(Type type) {
-  switch (type) {
-    case Type::I32:
-    case Type::I8:
-      return "i";
-    case Type::DOUBLE:
-    case Type::FLOAT:
-      return "f";
-    default:
-      return "";
+std::string LLVMGenerator::getRelPrefix(const types::Type& type) {
+  if (type.isInteral()) {
+    return "i";
   }
+  if (type.isFloatingPoint()) {
+    return "f";
+  }
+  return "";
 }
 
 std::string LLVMGenerator::getOperationString(BinOpName op) {
@@ -101,11 +73,12 @@ std::string LLVMGenerator::getRelName(RelName relName) {
   }
 }
 
-std::string LLVMGenerator::getRelNamePrefix(RelName relName, Type type) {
-  if (type == Type::DOUBLE || type == Type::FLOAT) {
+std::string LLVMGenerator::getRelNamePrefix(RelName relName,
+                                            const types::Type& type) {
+  if (type.isFloatingPoint()) {
     return "o";
   }
-  if (type == Type::I32) {
+  if (type.isInteral()) {
     if (relName == RelName::EQ || relName == RelName::NE)
       return "";
     else
@@ -118,60 +91,51 @@ std::string LLVMGenerator::getIndent() {
   return "  ";
 }
 
-std::string LLVMGenerator::createBinOp(BinOpName op, Type type,
+std::string LLVMGenerator::createBinOp(BinOpName op, const types::Type& type,
                                        const std::string& arg1,
                                        const std::string& arg2) {
   const auto regStr = getRegStr();
   getText() += getIndent() + regStr + " = " + getOpPrefix(type, op) +
-               getOperationString(op) + " " + getTypeString(type) + " " + arg1 +
-               ", " + arg2 + "\n";
+               getOperationString(op) + " " + type.getLLVMString(true) + " " +
+               arg1 + ", " + arg2 + "\n";
   ++reg;
   return regStr;
 }
-std::string LLVMGenerator::createRel(Type type, RelName relName,
+std::string LLVMGenerator::createRel(const types::Type& type, RelName relName,
                                      const std::string& arg1,
                                      const std::string& arg2) {
   const auto regStr = getRegStr();
   getText() += getIndent() + regStr + " = " + getRelPrefix(type) + "cmp" + " " +
                getRelNamePrefix(relName, type) + getRelName(relName) + " " +
-               getTypeString(type) + " " + arg1 + ", " + arg2 + "\n";
+               type.getLLVMString(true) + " " + arg1 + ", " + arg2 + "\n";
   ++reg;
   return regStr;
 }
 
-void LLVMGenerator::createAssignment(Type type, const std::string& identifier,
-                                     const std::string& value,
+void LLVMGenerator::createAssignment(const types::Type& type,
+                                     const std::string& identifier,
+                                     const std::string& value, bool boolAsI1,
                                      bool isInternalPtr) {
   std::string idString = (isInternalPtr ? "" : "%") + identifier;
-  getText() += getIndent() + "store " + getTypeString(type) + " " + value +
-               ", " + getTypeString(type) + "* " + idString + "\n";
+  getText() += getIndent() + "store " + type.getLLVMString(boolAsI1) + " " +
+               value + ", " + type.getLLVMString(boolAsI1) + "* " + idString +
+               "\n";
 }
 
-void LLVMGenerator::createCustomAssignment(const std::string& typeStr,
-                                           const std::string& identifier,
-                                           const std::string& value,
-                                           bool isInternalPtr) {
-  std::string idString = (isInternalPtr ? "" : "%") + identifier;
-  getText() += getIndent() + "store " + typeStr + " " + value + ", " + typeStr +
-               "* " + idString + "\n";
+void LLVMGenerator::createDeclaration(const types::Type& type,
+                                      const std::string& arg, bool boolAsI1) {
+  getText() += getIndent() + "%" + arg + " = alloca " +
+               type.getLLVMString(boolAsI1) + "\n";
 }
 
-void LLVMGenerator::createDeclaration(Type type, const std::string& arg) {
-  getText() +=
-      getIndent() + "%" + arg + " = alloca " + getTypeString(type) + "\n";
-}
-
-void LLVMGenerator::createCustomDeclaration(const std::string& typeString,
-                                            const std::string& arg) {
-  getText() += getIndent() + "%" + arg + " = alloca " + typeString + "\n";
-}
-
-std::string LLVMGenerator::createLoad(Type type, const std::string& id,
+std::string LLVMGenerator::createLoad(const types::Type& type,
+                                      const std::string& id, bool boolAsI1,
                                       bool isInternalPtr) {
   const auto regStr = getRegStr();
   std::string idString = (isInternalPtr ? "" : "%") + id;
-  getText() += getIndent() + regStr + " = load " + getTypeString(type) + ", " +
-               getTypeString(type) + "* " + idString + "\n";
+  getText() += getIndent() + regStr + " = load " +
+               type.getLLVMString(boolAsI1) + ", " +
+               type.getLLVMString(boolAsI1) + "* " + idString + "\n";
   ++reg;
   return regStr;
 }
@@ -193,16 +157,7 @@ void LLVMGenerator::createLabel(const std::string& label) {
 
 void LLVMGenerator::createFunction(const std::string& functionName,
                                    const std::vector<FunctionParam>& params,
-                                   Type retType) {
-  reg = 1;
-  auto node = std::make_unique<Node>();
-  if (!functionDefs.empty()) {
-    functionDefs.top()->neighbors.push_back(node.get());
-  }
-  functionDefs.push(node.get());
-  activeFunctions.push(node.get());
-  graph.insertNode(std::move(node));
-
+                                   const types::Type& retType) {
   const char* sep = "";
   std::string paramsStr;
   for (const auto& param : params) {
@@ -215,8 +170,8 @@ void LLVMGenerator::createFunction(const std::string& functionName,
     paramsStr += sep + typeStr + " noundef %" + name;
     sep = ", ";
   }
-  getText() += "define dso_local " + getTypeString(retType) + " @" +
-               functionName + "(" + paramsStr + ") #0 {\n";
+  getHeader() += "define dso_local " + retType.getLLVMString(true) + " @" +
+                 functionName + "(" + paramsStr + ") #0 {\n";
 }
 
 void LLVMGenerator::exitFunction() {
@@ -235,13 +190,26 @@ void LLVMGenerator::exitFunction() {
   }
 }
 
-void LLVMGenerator::createReturn(Type type, const std::string& arg) {
-  getText() += getIndent() + "ret " + getTypeString(type) + " " + arg + "\n";
+void LLVMGenerator::enterFunction() {
+  reg = 1;
+  auto node = std::make_unique<Node>();
+  if (!functionDefs.empty()) {
+    functionDefs.top()->neighbors.push_back(node.get());
+  }
+  functionDefs.push(node.get());
+  activeFunctions.push(node.get());
+  graph.insertNode(std::move(node));
+}
+
+void LLVMGenerator::createReturn(const types::Type& type,
+                                 const std::string& arg) {
+  getText() +=
+      getIndent() + "ret " + type.getLLVMString(true) + " " + arg + "\n";
 }
 
 std::string LLVMGenerator::createCall(const std::string& functionName,
                                       const std::vector<FunctionParam>& args,
-                                      Type retType) {
+                                      const types::Type& retType) {
   std::string argsString;
   const char* sep = "";
   for (const auto& arg : args) {
@@ -250,8 +218,8 @@ std::string LLVMGenerator::createCall(const std::string& functionName,
   }
   auto callReg = getNumberedLabel("call", callRegisterNumber);
   getText() += getIndent() + "%" + callReg + " = call " +
-               getTypeString(retType) + " @" + functionName + "(" + argsString +
-               ")\n";
+               retType.getLLVMString(true) + " @" + functionName + "(" +
+               argsString + ")\n";
 
   return "%" + callReg;
 }
@@ -391,7 +359,7 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
   for (auto it = orderedFunctions.rbegin(); it != orderedFunctions.rend();
        ++it) {
     const auto& funDef = *it;
-    functionDefinitions += funDef->text;
+    functionDefinitions += funDef->header + funDef->text;
   }
   code += functionDefinitions;
   code += "define dso_local i32 @main() #0 {\n";
@@ -400,42 +368,55 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
   return code;
 }
 
-std::string LLVMGenerator::getZeroLiteral(Type type) {
-  switch (type) {
-    case Type::I32:
-    case Type::I8:
-      return "0";
-    case Type::DOUBLE:
-    case Type::FLOAT:
-      return "0.0";
-    default:
-      __builtin_unreachable();
+std::string LLVMGenerator::getZeroLiteral(const types::Type& type) {
+  if (!type.isLeaf())
+    throw std::invalid_argument("Only for leafs");
+  if (type.isInteral()) {
+    return "0";
   }
+  if (type.isFloatingPoint()) {
+    return "0.0";
+  }
+  return "";
 }
 
-bool LLVMGenerator::supportsLiteralTranslation(Type from, Type to) {
-  if (from == Type::I32) {
-    if (to == Type::DOUBLE || to == Type::FLOAT) {
+bool LLVMGenerator::supportsLiteralTranslation(const types::Type& from,
+                                               const types::Type& to) {
+  if (!from.isLeaf() || !to.isLeaf()) {
+    return false;
+  }
+  const auto& fromLeaf = dynamic_cast<const types::LeafNode&>(from.getRoot());
+  const auto& toLeaf = dynamic_cast<const types::LeafNode&>(to.getRoot());
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::INT) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::DOUBLE ||
+        toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       return true;
     }
   }
-  if (from == Type::DOUBLE) {
-    if (to == Type::FLOAT) {
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::DOUBLE) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       return true;
     }
   }
   return false;
 }
 
-std::string LLVMGenerator::getLiteral(Type from, Type to,
+std::string LLVMGenerator::getLiteral(const types::Type& from,
+                                      const types::Type& to,
                                       const std::string& literal) {
-  if (from == Type::I32) {
-    if (to == Type::DOUBLE || to == Type::FLOAT) {
+  if (!from.isLeaf() || !to.isLeaf())
+    throw std::invalid_argument("literals only for leafs");
+
+  auto& fromLeaf = dynamic_cast<const types::LeafNode&>(from.getRoot());
+  auto& toLeaf = dynamic_cast<const types::LeafNode&>(to.getRoot());
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::INT) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::DOUBLE ||
+        toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       return literal + ".0";
     }
   }
-  if (from == Type::DOUBLE) {
-    if (to == Type::FLOAT) {
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::DOUBLE) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       std::stringstream buffer;
       double x = std::stof(literal);
       buffer << std::hex << *reinterpret_cast<uint64_t*>(&x);

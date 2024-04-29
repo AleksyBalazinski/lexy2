@@ -12,6 +12,14 @@ bool ArrayNode::isLeaf() const {
   return false;
 }
 
+bool ArrayNode::isIntegral() const {
+  return false;
+}
+
+bool ArrayNode::isFloatingPoint() const {
+  return false;
+}
+
 std::optional<int> ArrayNode::getSimpleTypeId() const {
   return {};
 }

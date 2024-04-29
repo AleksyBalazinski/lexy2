@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 #include "code_gen/graph.hpp"
+#include "function_param.hpp"
+#include "types/type.hpp"
 
 namespace lexy2 {
-class FunctionParam;
+
 class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
@@ -22,6 +24,7 @@ class LLVMGenerator {
       return activeFunctions.top()->text;
     return text;
   }
+  std::string& getHeader() { return activeFunctions.top()->header; }
   std::string text;
   std::stack<Node*> functionDefs;
   std::stack<Node*> activeFunctions;
@@ -40,34 +43,29 @@ class LLVMGenerator {
 
   int callRegisterNumber = 0;
 
-  static std::string getOpPrefix(Type type, BinOpName op);
-  static std::string getRelPrefix(Type type);
+  static std::string getOpPrefix(const types::Type& type, BinOpName op);
+  static std::string getRelPrefix(const types::Type& type);
   static std::string getOperationString(BinOpName op);
   static std::string getRelName(RelName relName);
-  static std::string getRelNamePrefix(RelName relName, Type type);
+  static std::string getRelNamePrefix(RelName relName, const types::Type& type);
   static std::string getIndent();
 
  public:
-  std::string createBinOp(BinOpName op, Type type, const std::string& arg1,
-                          const std::string& arg2);
+  std::string createBinOp(BinOpName op, const types::Type& type,
+                          const std::string& arg1, const std::string& arg2);
 
-  std::string createRel(Type type, RelName relName, const std::string& arg1,
-                        const std::string& arg2);
+  std::string createRel(const types::Type& type, RelName relName,
+                        const std::string& arg1, const std::string& arg2);
 
-  void createAssignment(Type type, const std::string& identifier,
-                        const std::string& value, bool isInternalPtr = false);
+  void createAssignment(const types::Type& type, const std::string& identifier,
+                        const std::string& value, bool boolAsI1,
+                        bool isInternalPtr = false);
 
-  void createCustomAssignment(const std::string& typeStr,
-                              const std::string& identifier,
-                              const std::string& value,
-                              bool isInternalPtr = false);
+  void createDeclaration(const types::Type& type, const std::string& arg,
+                         bool boolAsI1);
 
-  void createDeclaration(Type type, const std::string& arg);
-  void createCustomDeclaration(const std::string& typeString,
-                               const std::string& arg);
-
-  std::string createLoad(Type type, const std::string& id,
-                         bool isInternalPtr = false);
+  std::string createLoad(const types::Type& type, const std::string& id,
+                         bool boolAsI1, bool isInternalPtr = false);
 
   void createBranch(const std::string& cond, const std::string& ifTrue,
                     const std::string& ifFalse);
@@ -76,12 +74,15 @@ class LLVMGenerator {
   void createLabel(const std::string& label);
 
   void createFunction(const std::string& functionName,
-                      const std::vector<FunctionParam>& params, Type retType);
+                      const std::vector<FunctionParam>& params,
+                      const types::Type& retType);
   void exitFunction();
+  void enterFunction();
 
-  void createReturn(Type type, const std::string& arg);
+  void createReturn(const types::Type& type, const std::string& arg);
   std::string createCall(const std::string& functionName,
-                         const std::vector<FunctionParam>& args, Type retType);
+                         const std::vector<FunctionParam>& args,
+                         const types::Type& retType);
 
   std::string getIfThenLabel();
   std::string getIfEndLabel();
@@ -111,11 +112,13 @@ class LLVMGenerator {
 
   std::string emitCode(const std::string& source_filename);
 
-  static std::string getZeroLiteral(Type type);
-  static bool supportsLiteralTranslation(Type from, Type to);
-  static std::string getLiteral(Type from, Type to, const std::string& literal);
+  static std::string getZeroLiteral(const types::Type& type);
 
-  static std::string getTypeString(Type type);
+  static bool supportsLiteralTranslation(const types::Type& from,
+                                         const types::Type& to);
+
+  static std::string getLiteral(const types::Type& from, const types::Type& to,
+                                const std::string& literal);
 
  private:
   std::string getRegStr() const;

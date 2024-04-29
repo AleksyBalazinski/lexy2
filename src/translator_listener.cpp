@@ -89,12 +89,12 @@ Error<std::string> TranslatorListener::declareVariable(
     loadedInitializer.name = generator.extI1toI8(loadedInitializer.name);
   }
 
-  auto typeStr = loadedInitializer.type.getLLVMString(false);
+  const auto& initializerType = loadedInitializer.type;
 
-  generator.createCustomDeclaration(typeStr, scopedIdentifier);
+  generator.createDeclaration(initializerType, scopedIdentifier, false);
   if (!declaredType->isArray()) {
-    generator.createCustomAssignment(typeStr, scopedIdentifier,
-                                     loadedInitializer.name);
+    generator.createAssignment(initializerType, scopedIdentifier,
+                               loadedInitializer.name, false);
   }
 
   symbolTable.insertInCurrentScope(std::make_pair(
@@ -136,31 +136,51 @@ void TranslatorListener::exitVariableDeclaration(
 void TranslatorListener::enterFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
   functionParams.push({});
+  generator.enterFunction();
+}
+
+Error<std::string> TranslatorListener::declareFunction(
+    const std::string& functionName, const types::Type& retType,
+    const std::vector<FunctionParam>& functionParams) {
+  if (symbolTable.currentScopeFind(functionNames.top()) !=
+      symbolTable.getCurrentScope().end()) {
+    return error("Identifier '" + functionNames.top() + "' already in use");
+  }
+
+  if (!retType.isLeaf()) {
+    throw std::runtime_error("Not implemented");
+  }
+
+  generator.createFunction(functionName + symbolTable.getCurrentScopeID(),
+                           functionParams, retType);
+
+  std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
+  for (const auto& param : functionParams) {
+    typeNodes.push_back(types::cloneNode(param.type.getRoot()));
+  }
+  types::Type functionType(std::make_unique<types::FunctionNode>(
+      std::move(typeNodes), types::cloneNode(retType.getRoot())));
+  symbolTable.insertInCurrentScope(std::make_pair(
+      functionName,
+      Value(functionName, functionType, Value::Category::MEMORY)));
+
+  return {};
 }
 
 void TranslatorListener::exitFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
-  if (symbolTable.currentScopeFind(functionNames.top()) !=
-      symbolTable.getCurrentScope().end()) {
-    errorHandler.reportError(
-        utils::getLineCol(ctx),
-        "Identifier '" + functionNames.top() + "' already in use");
+  auto err = declareFunction(functionNames.top(), retTypesStack.top(),
+                             functionParams.top());
+  if (err) {
+    errorHandler.reportError(utils::getLineCol(ctx), err.message());
     inErrorMode = true;
     return;
   }
 
-  std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
-  for (const auto& param : functionParams.top()) {
-    typeNodes.push_back(types::cloneNode(param.type.getRoot()));
-  }
-  types::Type functionType(std::make_unique<types::FunctionNode>(
-      std::move(typeNodes), types::cloneNode(retTypesStack.top().getRoot())));
-  symbolTable.insertInCurrentScope(std::make_pair(
-      functionNames.top(),
-      Value(functionNames.top(), functionType, Value::Category::MEMORY)));
   functionParams.pop();
   retTypesStack.pop();
   functionNames.pop();
+  generator.exitFunction();
 }
 
 void TranslatorListener::exitFunctionName(
@@ -180,20 +200,6 @@ void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
 
 void TranslatorListener::enterFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
-
-  if (!retTypesStack.top().isLeaf()) {
-    throw std::runtime_error("Not implemented");
-  }
-
-  auto typeID = *retTypesStack.top().getSimpleTypeId();
-  auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  if (typeID == BOOL_TYPE_ID) {
-    retLLVMType = LLVMGenerator::Type::I1;
-  }
-  generator.createFunction(
-      functionNames.top() + symbolTable.getCurrentScopeID(),
-      functionParams.top(), retLLVMType);
-
   symbolTable.enterNewScope();
   // allocate memory for arguments
   for (const auto& param : functionParams.top()) {
@@ -203,15 +209,14 @@ void TranslatorListener::enterFunctionBody(
     }
     auto typeID = *paramType.getSimpleTypeId();
     const auto scopedIdentifier = param.name + symbolTable.getCurrentScopeID();
-    auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
     if (typeID == BOOL_TYPE_ID) {
       auto extParam = generator.extI1toI8("%" + param.name);
-      llvmType = LLVMGenerator::Type::I8;
-      generator.createDeclaration(llvmType, scopedIdentifier);
-      generator.createAssignment(llvmType, scopedIdentifier, extParam);
+      generator.createDeclaration(paramType, scopedIdentifier, false);
+      generator.createAssignment(paramType, scopedIdentifier, extParam, false);
     } else {
-      generator.createDeclaration(llvmType, scopedIdentifier);
-      generator.createAssignment(llvmType, scopedIdentifier, "%" + param.name);
+      generator.createDeclaration(paramType, scopedIdentifier, false);
+      generator.createAssignment(paramType, scopedIdentifier, "%" + param.name,
+                                 false);
     }
 
     symbolTable.insertInCurrentScope(std::make_pair(
@@ -219,21 +224,15 @@ void TranslatorListener::enterFunctionBody(
   }
 
   // allocate memory for return variable
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  if (typeID == BOOL_TYPE_ID) {
-    llvmType = LLVMGenerator::Type::I8;
-  }
-  generator.createDeclaration(llvmType, "retVal");
+  auto typeID = *retTypesStack.top().getSimpleTypeId();
+  generator.createDeclaration(retTypesStack.top(), "retVal", false);
 }
 
 void TranslatorListener::exitFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
   symbolTable.leaveScope();
-  auto typeID = *retTypesStack.top().getSimpleTypeId();
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  auto loaded = generator.createLoad(llvmType, "retVal");
-  generator.createReturn(llvmType, loaded);
-  generator.exitFunction();
+  auto loaded = generator.createLoad(retTypesStack.top(), "retVal", true);
+  generator.createReturn(retTypesStack.top(), loaded);
 }
 
 void TranslatorListener::exitReturnStatement(
@@ -259,13 +258,11 @@ void TranslatorListener::exitReturnStatement(
   }
 
   auto typeID = *value.type.getSimpleTypeId();
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   if (typeID == BOOL_TYPE_ID) {
     value.name = generator.extI1toI8(value.name);
-    llvmType = LLVMGenerator::Type::I8;
   }
 
-  generator.createAssignment(llvmType, "retVal", value.name);
+  generator.createAssignment(value.type, "retVal", value.name, false);
 }
 
 void TranslatorListener::enterCompoundStatement(
@@ -829,10 +826,9 @@ void TranslatorListener::exitFunctionCall(
   }
 
   auto typeID = *functionNode.getReturnType()->getSimpleTypeId();
-  auto callResult = generator.createCall(
-      function.name, args, toLLVMType(static_cast<PrimitiveType>(typeID)));
-  valueStack.push(
-      Value(callResult, types::cloneNode(*functionNode.getReturnType())));
+  auto retType = types::Type(types::cloneNode(*functionNode.getReturnType()));
+  auto callResult = generator.createCall(function.name, args, retType);
+  valueStack.push(Value(callResult, retType));
 }
 
 void TranslatorListener::exitFunctionArg(Lexy2Parser::FunctionArgContext* ctx) {

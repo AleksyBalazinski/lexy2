@@ -8,16 +8,23 @@ void types::LLVMStrVisitor::visit(const ArrayNode& arrayType) {
   text = "[" + std::to_string(arrayType.getDim()) + " x " + text + "]";
 }
 
-void types::LLVMStrVisitor::visit(const LeafNode& LeafNode) {
-  if (LeafNode.getPrimitiveType() == PrimitiveType::BOOL) {
-    if (boolAsI1) {
-      text = "i1";
-      return;
-    }
-    text = "i8";
-    return;
+std::string getTypeString(PrimitiveType primitiveType, bool boolAsI1) {
+  switch (primitiveType) {
+    case PrimitiveType::INT:
+      return "i32";
+    case PrimitiveType::DOUBLE:
+      return "double";
+    case PrimitiveType::BOOL:
+      return boolAsI1 ? "i1" : "i8";
+    case PrimitiveType::FLOAT:
+      return "float";
+    default:
+      return "";
   }
-  text = LLVMGenerator::getTypeString(toLLVMType(LeafNode.getPrimitiveType()));
+}
+
+void types::LLVMStrVisitor::visit(const LeafNode& LeafNode) {
+  text = getTypeString(LeafNode.getPrimitiveType(), boolAsI1);
 }
 
 void types::LLVMStrVisitor::visit(const FunctionNode& functionNode) {

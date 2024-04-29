@@ -12,6 +12,16 @@ bool LeafNode::isLeaf() const {
   return true;
 }
 
+bool LeafNode::isIntegral() const {
+  return primitiveType == PrimitiveType::BOOL ||
+         primitiveType == PrimitiveType::INT;
+}
+
+bool LeafNode::isFloatingPoint() const {
+  return primitiveType == PrimitiveType::DOUBLE ||
+         primitiveType == PrimitiveType::FLOAT;
+}
+
 std::optional<int> LeafNode::getSimpleTypeId() const {
   return static_cast<int>(primitiveType);
 }
