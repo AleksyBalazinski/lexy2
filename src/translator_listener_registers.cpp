@@ -59,10 +59,8 @@ Value TranslatorListener::castRegister(const Value& value,
 
   PrimitiveType targetPrimitive = static_cast<PrimitiveType>(targetTypeID);
   if (value.category == Value::Category::CONSTANT) {
-    auto llvmFrom = toLLVMType(static_cast<PrimitiveType>(typeID));
-    auto llvmTo = toLLVMType(targetPrimitive);
-    if (generator.supportsLiteralTranslation(llvmFrom, llvmTo)) {
-      auto str = generator.getLiteral(llvmFrom, llvmTo, value.name);
+    if (generator.supportsLiteralTranslation(value.type, targetType)) {
+      auto str = generator.getLiteral(value.type, targetType, value.name);
       return Value(str, targetType, Value::Category::CONSTANT);
     }
   }
@@ -125,10 +123,8 @@ Value TranslatorListener::negateRegister(const Value& value) {
   if (!value.type.getSimpleTypeId().has_value())
     throw std::invalid_argument("negate register");
 
-  int typeID = *value.type.getSimpleTypeId();
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   auto regStr = generator.createBinOp(LLVMGenerator::BinOpName::SUB, value.type,
-                                      LLVMGenerator::getZeroLiteral(llvmType),
+                                      LLVMGenerator::getZeroLiteral(value.type),
                                       value.name);
   return Value(regStr, value.type);
 }

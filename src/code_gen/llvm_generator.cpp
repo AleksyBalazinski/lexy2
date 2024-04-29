@@ -1,29 +1,10 @@
 #include "code_gen/llvm_generator.hpp"
 #include <sstream>
 #include "code_gen/topo_sorter.hpp"
-#include "function_param.hpp"
 #include "types/llvm_str_visitor.hpp"
-#include "types/type.hpp"
 #include "utils.hpp"
 
 namespace lexy2 {
-std::string LLVMGenerator::getTypeString(Type type) {
-  switch (type) {
-    case Type::I32:
-      return "i32";
-    case Type::I8:
-      return "i8";
-    case Type::DOUBLE:
-      return "double";
-    case Type::FLOAT:
-      return "float";
-    case Type::I1:
-      return "i1";
-    default:
-      return "";
-  }
-}
-
 std::string LLVMGenerator::getOpPrefix(const types::Type& type, BinOpName op) {
   if (op != BinOpName::DIV && op != BinOpName::REM) {
     if (type.isInteral()) {
@@ -176,7 +157,7 @@ void LLVMGenerator::createLabel(const std::string& label) {
 
 void LLVMGenerator::createFunction(const std::string& functionName,
                                    const std::vector<FunctionParam>& params,
-                                   Type retType) {
+                                   const types::Type& retType) {
   const char* sep = "";
   std::string paramsStr;
   for (const auto& param : params) {
@@ -189,7 +170,7 @@ void LLVMGenerator::createFunction(const std::string& functionName,
     paramsStr += sep + typeStr + " noundef %" + name;
     sep = ", ";
   }
-  getHeader() += "define dso_local " + getTypeString(retType) + " @" +
+  getHeader() += "define dso_local " + retType.getLLVMString(true) + " @" +
                  functionName + "(" + paramsStr + ") #0 {\n";
 }
 
@@ -220,13 +201,15 @@ void LLVMGenerator::enterFunction() {
   graph.insertNode(std::move(node));
 }
 
-void LLVMGenerator::createReturn(Type type, const std::string& arg) {
-  getText() += getIndent() + "ret " + getTypeString(type) + " " + arg + "\n";
+void LLVMGenerator::createReturn(const types::Type& type,
+                                 const std::string& arg) {
+  getText() +=
+      getIndent() + "ret " + type.getLLVMString(true) + " " + arg + "\n";
 }
 
 std::string LLVMGenerator::createCall(const std::string& functionName,
                                       const std::vector<FunctionParam>& args,
-                                      Type retType) {
+                                      const types::Type& retType) {
   std::string argsString;
   const char* sep = "";
   for (const auto& arg : args) {
@@ -235,8 +218,8 @@ std::string LLVMGenerator::createCall(const std::string& functionName,
   }
   auto callReg = getNumberedLabel("call", callRegisterNumber);
   getText() += getIndent() + "%" + callReg + " = call " +
-               getTypeString(retType) + " @" + functionName + "(" + argsString +
-               ")\n";
+               retType.getLLVMString(true) + " @" + functionName + "(" +
+               argsString + ")\n";
 
   return "%" + callReg;
 }
@@ -385,42 +368,55 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
   return code;
 }
 
-std::string LLVMGenerator::getZeroLiteral(Type type) {
-  switch (type) {
-    case Type::I32:
-    case Type::I8:
-      return "0";
-    case Type::DOUBLE:
-    case Type::FLOAT:
-      return "0.0";
-    default:
-      __builtin_unreachable();
+std::string LLVMGenerator::getZeroLiteral(const types::Type& type) {
+  if (!type.isLeaf())
+    throw std::invalid_argument("Only for leafs");
+  if (type.isInteral()) {
+    return "0";
   }
+  if (type.isFloatingPoint()) {
+    return "0.0";
+  }
+  return "";
 }
 
-bool LLVMGenerator::supportsLiteralTranslation(Type from, Type to) {
-  if (from == Type::I32) {
-    if (to == Type::DOUBLE || to == Type::FLOAT) {
+bool LLVMGenerator::supportsLiteralTranslation(const types::Type& from,
+                                               const types::Type& to) {
+  if (!from.isLeaf() || !to.isLeaf()) {
+    return false;
+  }
+  const auto& fromLeaf = dynamic_cast<const types::LeafNode&>(from.getRoot());
+  const auto& toLeaf = dynamic_cast<const types::LeafNode&>(to.getRoot());
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::INT) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::DOUBLE ||
+        toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       return true;
     }
   }
-  if (from == Type::DOUBLE) {
-    if (to == Type::FLOAT) {
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::DOUBLE) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       return true;
     }
   }
   return false;
 }
 
-std::string LLVMGenerator::getLiteral(Type from, Type to,
+std::string LLVMGenerator::getLiteral(const types::Type& from,
+                                      const types::Type& to,
                                       const std::string& literal) {
-  if (from == Type::I32) {
-    if (to == Type::DOUBLE || to == Type::FLOAT) {
+  if (!from.isLeaf() || !to.isLeaf())
+    throw std::invalid_argument("literals only for leafs");
+
+  auto& fromLeaf = dynamic_cast<const types::LeafNode&>(from.getRoot());
+  auto& toLeaf = dynamic_cast<const types::LeafNode&>(to.getRoot());
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::INT) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::DOUBLE ||
+        toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       return literal + ".0";
     }
   }
-  if (from == Type::DOUBLE) {
-    if (to == Type::FLOAT) {
+  if (fromLeaf.getPrimitiveType() == PrimitiveType::DOUBLE) {
+    if (toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
       std::stringstream buffer;
       double x = std::stof(literal);
       buffer << std::hex << *reinterpret_cast<uint64_t*>(&x);

@@ -7,12 +7,10 @@
 #include <string>
 #include <vector>
 #include "code_gen/graph.hpp"
+#include "function_param.hpp"
+#include "types/type.hpp"
 
 namespace lexy2 {
-class FunctionParam;
-namespace types {
-class Type;
-}  // namespace types
 
 class LLVMGenerator {
  public:
@@ -76,13 +74,15 @@ class LLVMGenerator {
   void createLabel(const std::string& label);
 
   void createFunction(const std::string& functionName,
-                      const std::vector<FunctionParam>& params, Type retType);
+                      const std::vector<FunctionParam>& params,
+                      const types::Type& retType);
   void exitFunction();
   void enterFunction();
 
-  void createReturn(Type type, const std::string& arg);
+  void createReturn(const types::Type& type, const std::string& arg);
   std::string createCall(const std::string& functionName,
-                         const std::vector<FunctionParam>& args, Type retType);
+                         const std::vector<FunctionParam>& args,
+                         const types::Type& retType);
 
   std::string getIfThenLabel();
   std::string getIfEndLabel();
@@ -112,11 +112,13 @@ class LLVMGenerator {
 
   std::string emitCode(const std::string& source_filename);
 
-  static std::string getZeroLiteral(Type type);
-  static bool supportsLiteralTranslation(Type from, Type to);
-  static std::string getLiteral(Type from, Type to, const std::string& literal);
+  static std::string getZeroLiteral(const types::Type& type);
 
-  static std::string getTypeString(Type type);
+  static bool supportsLiteralTranslation(const types::Type& from,
+                                         const types::Type& to);
+
+  static std::string getLiteral(const types::Type& from, const types::Type& to,
+                                const std::string& literal);
 
  private:
   std::string getRegStr() const;

@@ -151,13 +151,8 @@ Error<std::string> TranslatorListener::declareFunction(
     throw std::runtime_error("Not implemented");
   }
 
-  auto typeID = *retType.getSimpleTypeId();
-  auto retLLVMType = toLLVMType(static_cast<PrimitiveType>(typeID));
-  if (typeID == BOOL_TYPE_ID) {
-    retLLVMType = LLVMGenerator::Type::I1;
-  }
   generator.createFunction(functionName + symbolTable.getCurrentScopeID(),
-                           functionParams, retLLVMType);
+                           functionParams, retType);
 
   std::vector<std::unique_ptr<types::TypeNode>> typeNodes;
   for (const auto& param : functionParams) {
@@ -236,10 +231,8 @@ void TranslatorListener::enterFunctionBody(
 void TranslatorListener::exitFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
   symbolTable.leaveScope();
-  auto typeID = *retTypesStack.top().getSimpleTypeId();
-  auto llvmType = toLLVMType(static_cast<PrimitiveType>(typeID));
   auto loaded = generator.createLoad(retTypesStack.top(), "retVal", true);
-  generator.createReturn(llvmType, loaded);
+  generator.createReturn(retTypesStack.top(), loaded);
 }
 
 void TranslatorListener::exitReturnStatement(
@@ -833,10 +826,9 @@ void TranslatorListener::exitFunctionCall(
   }
 
   auto typeID = *functionNode.getReturnType()->getSimpleTypeId();
-  auto callResult = generator.createCall(
-      function.name, args, toLLVMType(static_cast<PrimitiveType>(typeID)));
-  valueStack.push(
-      Value(callResult, types::cloneNode(*functionNode.getReturnType())));
+  auto retType = types::Type(types::cloneNode(*functionNode.getReturnType()));
+  auto callResult = generator.createCall(function.name, args, retType);
+  valueStack.push(Value(callResult, retType));
 }
 
 void TranslatorListener::exitFunctionArg(Lexy2Parser::FunctionArgContext* ctx) {
