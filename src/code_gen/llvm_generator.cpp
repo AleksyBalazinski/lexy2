@@ -49,6 +49,12 @@ std::string LLVMGenerator::getOperationString(BinOpName op) {
       return "rem";
     case BinOpName::CMP:
       return "cmp";
+    case BinOpName::AND:
+      return "and";
+    case BinOpName::OR:
+      return "or";
+    case BinOpName::XOR:
+      return "xor";
     default:
       return "";
   }
@@ -279,6 +285,13 @@ std::string LLVMGenerator::extBoolToI32(const std::string& id) {
 std::string LLVMGenerator::truncateI8ToI1(const std::string& val) {
   const auto regStr = getRegStr();
   getText() += getIndent() + regStr + " = trunc i8 " + val + " to i1\n";
+  ++reg;
+  return regStr;
+}
+
+std::string LLVMGenerator::truncI32ToBool(const std::string& val) {
+  const auto regStr = getRegStr();
+  getText() += getIndent() + regStr + " = trunc i32 " + val + " to i1\n";
   ++reg;
   return regStr;
 }

@@ -15,7 +15,7 @@ namespace lexy2 {
 class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
-  enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP };
+  enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP, AND, OR, XOR };
   enum class RelName { EQ, NE, GE, LE, GT, LT };
 
  private:
@@ -96,6 +96,7 @@ class LLVMGenerator {
   std::string castDoubleToI32(const std::string& id);
   std::string extBoolToI32(const std::string& id);
   std::string truncateI8ToI1(const std::string& val);
+  std::string truncI32ToBool(const std::string& val);
   std::string extI1toI8(const std::string& val);
   std::string extI32toI64(const std::string& val);
   std::string truncDoubleToFloat(const std::string& val);

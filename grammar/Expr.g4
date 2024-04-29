@@ -27,12 +27,16 @@ conditionalExpr:
 	| cond = logicalOrExpr '?' then = expr ':' else = assignmentExpr	# Ternary;
 
 logicalOrExpr:
-	logicalAndExpr						# fwd07
-	| logicalOrExpr '||' logicalAndExpr	# logicalOr;
+	logicalXorExpr						# fwd07
+	| logicalOrExpr '|' logicalXorExpr	# logicalOr;
+
+logicalXorExpr:
+	logicalAndExpr						# fwd08
+	| logicalXorExpr '^' logicalAndExpr	# logicalXor;
 
 logicalAndExpr:
 	equalityExpr										# fwd10
-	| left = logicalAndExpr '&&' right = equalityExpr	# LogicalAnd;
+	| left = logicalAndExpr '&' right = equalityExpr	# LogicalAnd;
 
 equalityExpr:
 	relationalExpr													# fwd20
