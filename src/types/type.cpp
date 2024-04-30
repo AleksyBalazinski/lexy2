@@ -1,4 +1,6 @@
 #include "types/type.hpp"
+#include "types/cloning_visitor.hpp"
+#include "types/llvm_str_visitor.hpp"
 
 namespace lexy2::types {
 Type::Type() : Type(nullptr) {}

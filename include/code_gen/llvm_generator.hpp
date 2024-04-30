@@ -8,6 +8,7 @@
 #include <vector>
 #include "code_gen/graph.hpp"
 #include "function_param.hpp"
+#include "operations.hpp"
 #include "types/type.hpp"
 
 namespace lexy2 {
@@ -16,7 +17,6 @@ class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
   enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP, AND, OR, XOR };
-  enum class RelName { EQ, NE, GE, LE, GT, LT };
 
  private:
   std::string& getText() {
@@ -46,8 +46,9 @@ class LLVMGenerator {
   static std::string getOpPrefix(const types::Type& type, BinOpName op);
   static std::string getRelPrefix(const types::Type& type);
   static std::string getOperationString(BinOpName op);
-  static std::string getRelName(RelName relName);
-  static std::string getRelNamePrefix(RelName relName, const types::Type& type);
+  static std::string getRelName(Relation relName);
+  static std::string getRelNamePrefix(Relation relName,
+                                      const types::Type& type);
   static std::string getIndent();
 
  public:
@@ -56,7 +57,7 @@ class LLVMGenerator {
   std::string createBinOp(BinOpName op, const types::Type& type,
                           const std::string& arg1, const std::string& arg2);
 
-  std::string createRel(const types::Type& type, RelName relName,
+  std::string createRel(const types::Type& type, Relation relName,
                         const std::string& arg1, const std::string& arg2);
 
   void createAssignment(const types::Type& type, const std::string& identifier,

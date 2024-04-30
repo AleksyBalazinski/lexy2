@@ -15,7 +15,7 @@
 #include "operations.hpp"
 #include "symbol_table.hpp"
 #include "type_manager.hpp"
-#include "utils.hpp"
+#include "types/type_node_factory.hpp"
 
 namespace lexy2 {
 
@@ -32,11 +32,7 @@ class TranslatorListener : public Lexy2BaseListener {
   std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
-  const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
-  const int DOUBLE_TYPE_ID = static_cast<int>(PrimitiveType::DOUBLE);
-  const int BOOL_TYPE_ID = static_cast<int>(PrimitiveType::BOOL);
-  const int FLOAT_TYPE_ID = static_cast<int>(PrimitiveType::FLOAT);
-  std::unordered_map<std::string, int> typeIDs;
+  types::TypeNodeFactory typeNodeFactory;
   TypeManager typeManager;
 
   ErrorHandler& errorHandler;

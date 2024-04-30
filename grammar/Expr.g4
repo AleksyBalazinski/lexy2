@@ -1,11 +1,5 @@
 grammar Expr;
 
-TYPE_ID:
-	'double'
-	| 'int'
-	| 'bool'
-	| 'float'; // TODO user defined types
-
 INTEGER_LITERAL: [0-9]+;
 FLOAT_LITERAL:
 	[0-9]+ '.' [0-9]+ (('e' | 'E') ('+' | '-')? [0-9]+)?;
@@ -56,7 +50,7 @@ multiplicativeExpr:
 
 castExpr:
 	unaryExpr							# fwd60
-	| left = castExpr ' as ' TYPE_ID	# Cast;
+	| left = castExpr 'as' IDENTIFIER	# Cast;
 
 unaryExpr:
 	primaryExpr										# fwd70

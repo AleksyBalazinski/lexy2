@@ -8,7 +8,7 @@ arrayType: nonArrayType rankSpecifier+;
 
 rankSpecifier: '[' INTEGER_LITERAL ']';
 
-simpleType: TYPE_ID;
+simpleType: IDENTIFIER;
 
 nonArrayType: pointerType | simpleType;
 

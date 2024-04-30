@@ -1,8 +1,8 @@
 #include "types/leaf_node.hpp"
 
 namespace lexy2::types {
-LeafNode::LeafNode(PrimitiveType primitiveType)
-    : primitiveType(primitiveType) {}
+LeafNode::LeafNode(TypeManager::TyID typeID, const TypeManager& typeManager)
+    : typeID(typeID), typeManager(typeManager) {}
 
 void LeafNode::accept(TypeVisitor& v) const {
   v.visit(*this);
@@ -13,25 +13,25 @@ bool LeafNode::isLeaf() const {
 }
 
 bool LeafNode::isIntegral() const {
-  return primitiveType == PrimitiveType::BOOL ||
-         primitiveType == PrimitiveType::INT;
+  return typeID == TypeManager::BOOL_TYPE_ID ||
+         typeID == TypeManager::INT_TYPE_ID;
 }
 
 bool LeafNode::isFloatingPoint() const {
-  return primitiveType == PrimitiveType::DOUBLE ||
-         primitiveType == PrimitiveType::FLOAT;
+  return typeID == TypeManager::FLOAT_TYPE_ID ||
+         typeID == TypeManager::DOUBLE_TYPE_ID;
 }
 
-std::optional<int> LeafNode::getSimpleTypeId() const {
-  return static_cast<int>(primitiveType);
+std::optional<TypeManager::TyID> LeafNode::getSimpleTypeId() const {
+  return typeID;
 }
 
 std::optional<TypeNode*> LeafNode::getChild() const {
   return {};
 }
 
-PrimitiveType LeafNode::getPrimitiveType() const {
-  return primitiveType;
+TypeManager::TyID LeafNode::getTypeID() const {
+  return typeID;
 }
 
 }  // namespace lexy2::types

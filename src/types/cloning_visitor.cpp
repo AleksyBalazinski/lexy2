@@ -8,7 +8,7 @@ void CloningVisitor::visit(const ArrayNode& arrayType) {
 }
 
 void CloningVisitor::visit(const LeafNode& leafType) {
-  node = std::make_unique<LeafNode>(leafType.getPrimitiveType());
+  node = std::make_unique<LeafNode>(leafType.getTypeID(), leafType.typeManager);
 }
 
 void CloningVisitor::visit(const FunctionNode& functionNode) {
