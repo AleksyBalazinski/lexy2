@@ -6,6 +6,7 @@ statement:
 	exprStatement
 	| declStatement
 	| printStatement
+	| readStatement
 	| compoundStatement
 	| selectionStatement
 	| iterationStatement
@@ -14,6 +15,8 @@ statement:
 exprStatement: expr ';';
 
 printStatement: '__print' expr ';' # printIntrinsic;
+
+readStatement: '__read' expr ';' # readIntrinsic;
 
 declStatement: variableDeclaration | functionDeclaration;
 

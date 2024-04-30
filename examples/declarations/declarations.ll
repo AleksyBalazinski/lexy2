@@ -1,10 +1,14 @@
 source_filename = "./examples\declarations\declarations.l2"
 target triple = "x86_64-w64-windows-gnu"
 
-@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1
 
 declare i32 @printf(ptr, ...)
+declare i32 @scanf(ptr, ...)
 
 define dso_local i32 @main() #0 {
   %acceleration = alloca double
@@ -32,6 +36,6 @@ define dso_local i32 @main() #0 {
   %13 = load double, double* %distance
   %14 = load double, double* %initial_dist
   %15 = fadd double %13, %14
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %15)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %15)
   ret i32 0
 }

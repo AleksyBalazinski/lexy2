@@ -1,10 +1,14 @@
 source_filename = "./examples\arithmetic\arithmetic.l2"
 target triple = "x86_64-w64-windows-gnu"
 
-@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1
 
 declare i32 @printf(ptr, ...)
+declare i32 @scanf(ptr, ...)
 
 define dso_local i32 @main() #0 {
   %1 = add i32 3, 5
@@ -17,13 +21,13 @@ define dso_local i32 @main() #0 {
   %8 = fmul double %7, 3.143
   %9 = fmul double 345.0e-3, %8
   %10 = fadd double %5, %9
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %10)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %10)
   %12 = fmul double 3.14, 8.0
   %13 = fptosi double %12 to i32
   %14 = sitofp i32 %13 to double
   %15 = fmul double %14, 2.0
   %16 = fdiv double %15, 3.0
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %16)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %16)
   %18 = fadd double 3.0, 3.0
   %19 = fsub double 0.0, 1.12
   %20 = fmul double 45.0, %19
@@ -38,6 +42,6 @@ define dso_local i32 @main() #0 {
   %29 = fadd double 125.0, %28
   %30 = fmul double %23, %29
   %31 = fadd double %22, %30
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %31)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %31)
   ret i32 0
 }

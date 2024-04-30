@@ -51,6 +51,26 @@ void TranslatorListener::exitPrintIntrinsic(
   }
 }
 
+void TranslatorListener::exitReadIntrinsic(
+    Lexy2Parser::ReadIntrinsicContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto value = std::move(valueStack.top());
+  valueStack.pop();
+  if (!value.isInMemory()) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Can't read into an rvalue");
+    inErrorMode = true;
+    return;
+  }
+  if (value.type.isLeaf()) {
+    int typeID = *value.type.getSimpleTypeId();
+    generator.read(value.name, value.type,
+                   value.category == Value::Category::INTERNAL_PTR);
+  }
+}
+
 bool areSameType(const types::Type& t1, const types::Type& t2) {
   if (!t1.getSimpleTypeId().has_value() || !t2.getSimpleTypeId().has_value()) {
     throw std::invalid_argument(

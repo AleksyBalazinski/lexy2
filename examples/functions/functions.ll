@@ -1,10 +1,14 @@
 source_filename = "./examples\functions\functions.l2"
 target triple = "x86_64-w64-windows-gnu"
 
-@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1
 
 declare i32 @printf(ptr, ...)
+declare i32 @scanf(ptr, ...)
 
 define dso_local i32 @b.4.1(i32 noundef %x) #0 {
   %x.4.1.1 = alloca i32
@@ -194,21 +198,21 @@ if.end:
 define dso_local i32 @main() #0 {
   %call = call i1 @and(i1 noundef false, i1 noundef false)
   %1 = zext i1 %call to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %1)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %1)
   %call1 = call i1 @and(i1 noundef true, i1 noundef false)
   %3 = zext i1 %call1 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %3)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %3)
   %call2 = call i1 @and(i1 noundef false, i1 noundef true)
   %5 = zext i1 %call2 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %5)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %5)
   %call3 = call i1 @and(i1 noundef true, i1 noundef true)
   %7 = zext i1 %call3 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %7)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %7)
   %call4 = call i32 @seq_sum(i32 noundef 4, i32 noundef 13, i32 noundef 2)
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %call4)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %call4)
   %call7 = call i32 @foo(i32 noundef 2, i32 noundef 14, i32 noundef 1)
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %call7)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %call7)
   %call10 = call i32 @very_nested(i32 noundef 1)
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %call10)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %call10)
   ret i32 0
 }
