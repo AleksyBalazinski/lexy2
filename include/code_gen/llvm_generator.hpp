@@ -51,6 +51,8 @@ class LLVMGenerator {
   static std::string getIndent();
 
  public:
+  LLVMGenerator();
+
   std::string createBinOp(BinOpName op, const types::Type& type,
                           const std::string& arg1, const std::string& arg2);
 
@@ -111,6 +113,9 @@ class LLVMGenerator {
   void printI32(const std::string& id);
   void printDouble(const std::string& id);
 
+  void read(const std::string& id, const types::Type& type,
+            bool isInternalPtr = false);
+
   std::string emitCode(const std::string& source_filename);
 
   static std::string getZeroLiteral(const types::Type& type);
@@ -129,5 +134,18 @@ class LLVMGenerator {
   std::string getCStdLibDeclarations();
 
   std::string getNumberedLabel(const char* label, int& num);
+
+  std::string formatIntNewLine =
+      R"(@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1)";
+  std::string formatFloatNewLine =
+      R"(@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1)";
+  std::string formatInt =
+      R"(@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1)";
+  std::string formatDouble =
+      R"(@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1)";
+  std::string formatFloat =
+      R"(@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1)";
+
+  std::vector<std::string> formatStrs;
 };
 }  // namespace lexy2

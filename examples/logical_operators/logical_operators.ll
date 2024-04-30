@@ -1,10 +1,14 @@
 source_filename = "./examples\logical_operators\logical_operators.l2"
 target triple = "x86_64-w64-windows-gnu"
 
-@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1
 
 declare i32 @printf(ptr, ...)
+declare i32 @scanf(ptr, ...)
 
 define dso_local i32 @main() #0 {
   %1 = zext i1 false to i8
@@ -31,7 +35,7 @@ define dso_local i32 @main() #0 {
   %14 = trunc i8 %13 to i1
   %15 = or i1 %14, %12
   %16 = zext i1 %15 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %16)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %16)
   %18 = load i8, i8* %a
   %19 = trunc i8 %18 to i1
   %20 = xor i1 %19, true
@@ -46,6 +50,6 @@ define dso_local i32 @main() #0 {
   %29 = xor i1 %25, %28
   %30 = or i1 %20, %29
   %31 = zext i1 %30 to i32
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %31)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %31)
   ret i32 0
 }

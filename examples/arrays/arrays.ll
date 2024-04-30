@@ -1,10 +1,14 @@
 source_filename = "./examples\arrays\arrays.l2"
 target triple = "x86_64-w64-windows-gnu"
 
-@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1
 
 declare i32 @printf(ptr, ...)
+declare i32 @scanf(ptr, ...)
 
 define dso_local i32 @main() #0 {
   %m1 = alloca [2 x [2 x i32]]
@@ -109,7 +113,7 @@ while.end2:
   %35 = sext i32 %34 to i64
   %arrayIdx29 = getelementptr inbounds [3 x i32], ptr %arrayIdx28, i64 0, i64 %35
   %36 = load i32, i32* %arrayIdx29
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %36)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %36)
   %38 = load i32, i32* %j.1
   %39 = add i32 %38, 1
   store i32 %39, i32* %j.1
@@ -120,7 +124,7 @@ while.end1:
   store i32 %41, i32* %i
   br label %while.cond
 while.end:
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef 1111)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef 1111)
   %prime = alloca [100 x i8]
   store i32 0, i32* %i
   br label %while.cond3
@@ -200,7 +204,7 @@ while.body6:
   br i1 %76, label %if.then1, label %if.end1
 if.then1:
   %77 = load i32, i32* %p
-  call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef %77)
+  call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 noundef %77)
   br label %if.end1
 if.end1:
   %79 = load i32, i32* %p

@@ -1,10 +1,14 @@
 source_filename = "./examples\floats\floats.l2"
 target triple = "x86_64-w64-windows-gnu"
 
-@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatIntNewLine = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@formatFloatNewLine = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
+@formatInt = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+@formatDouble = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@formatFloat = private unnamed_addr constant [3 x i8] c"%f\00", align 1
 
 declare i32 @printf(ptr, ...)
+declare i32 @scanf(ptr, ...)
 
 define dso_local i32 @main() #0 {
   %pi = alloca float
@@ -20,7 +24,7 @@ define dso_local i32 @main() #0 {
   store float %5, float* %area
   %6 = load float, float* %area
   %7 = fpext float %6 to double
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %7)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %7)
   %9 = load float, float* %area
   %10 = fcmp oeq float %9, 12.0
   %11 = zext i1 %10 to i8
@@ -44,7 +48,7 @@ define dso_local i32 @main() #0 {
   store float %21, float* %area1
   %22 = load float, float* %area1
   %23 = fpext float %22 to double
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %23)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %23)
   %y = alloca double
   store double 12.0, double* %y
   %25 = load float, float* %pi
@@ -56,7 +60,7 @@ define dso_local i32 @main() #0 {
   %area2 = alloca double
   store double %30, double* %area2
   %31 = load double, double* %area2
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %31)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %31)
   %a = alloca double
   store double 12.34, double* %a
   %33 = load double, double* %y
@@ -66,6 +70,6 @@ define dso_local i32 @main() #0 {
   %35 = load float, float* %b
   %36 = fsub float 0.0, %35
   %37 = fpext float %36 to double
-  call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double noundef %37)
+  call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double noundef %37)
   ret i32 0
 }

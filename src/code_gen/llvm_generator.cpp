@@ -97,6 +97,11 @@ std::string LLVMGenerator::getIndent() {
   return "  ";
 }
 
+LLVMGenerator::LLVMGenerator() {
+  formatStrs = {formatIntNewLine, formatFloatNewLine, formatInt, formatDouble,
+                formatFloat};
+}
+
 std::string LLVMGenerator::createBinOp(BinOpName op, const types::Type& type,
                                        const std::string& arg1,
                                        const std::string& arg2) {
@@ -344,18 +349,43 @@ std::string LLVMGenerator::getElementPtrInBounds(const std::string& array,
 }
 
 void LLVMGenerator::printI32(const std::string& id) {
-  getText() +=
-      getIndent() +
-      "call i32 (ptr, ...) @printf(ptr noundef @formatInt, i32 noundef " + id +
-      ")\n";
+  getText() += getIndent() +
+               "call i32 (ptr, ...) @printf(ptr noundef @formatIntNewLine, i32 "
+               "noundef " +
+               id + ")\n";
   ++reg;
 }
 
 void LLVMGenerator::printDouble(const std::string& id) {
-  getText() += getIndent() +
-               "call i32 (ptr, ...) @printf(ptr noundef @formatDouble, double "
-               "noundef " +
-               id + ")\n";
+  getText() +=
+      getIndent() +
+      "call i32 (ptr, ...) @printf(ptr noundef @formatFloatNewLine, double "
+      "noundef " +
+      id + ")\n";
+  ++reg;
+}
+
+void LLVMGenerator::read(const std::string& id, const types::Type& type,
+                         bool isInternalPtr) {
+  if (!type.isLeaf()) {
+    throw std::invalid_argument("Can't read non leaf types");
+  }
+  const auto& leafType = dynamic_cast<const types::LeafNode&>(type.getRoot());
+  auto primitive = static_cast<PrimitiveType>(*leafType.getSimpleTypeId());
+  std::string fStr;
+  if (primitive == PrimitiveType::INT) {
+    fStr = "@formatInt";
+  } else if (primitive == PrimitiveType::DOUBLE) {
+    fStr = "@formatDouble";
+  } else if (primitive == PrimitiveType::FLOAT) {
+    fStr = "@formatFloat";
+  } else {
+    throw std::invalid_argument("Not implemented for typeid " +
+                                std::to_string(static_cast<int>(primitive)));
+  }
+
+  getText() += getIndent() + "call i32 (ptr, ...) @scanf(ptr noundef " + fStr +
+               ", ptr noundef " + (isInternalPtr ? "" : "%") + id + ")\n";
   ++reg;
 }
 
@@ -444,16 +474,17 @@ std::string LLVMGenerator::getRegStr() const {
 }
 
 std::string LLVMGenerator::getPrintfFormatStrings() {
-  std::string formatInt =
-      R"(@formatInt = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1)";
-  std::string formatDouble =
-      R"(@formatDouble = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1)";
-  return formatInt + "\n" + formatDouble + "\n";
+  std::string result;
+  for (const auto& fStr : formatStrs) {
+    result += fStr + "\n";
+  }
+  return result;
 }
 
 std::string LLVMGenerator::getCStdLibDeclarations() {
   std::string declarePrintf = "declare i32 @printf(ptr, ...)";
-  return declarePrintf + "\n";
+  std::string declareScanf = "declare i32 @scanf(ptr, ...)";
+  return declarePrintf + "\n" + declareScanf + "\n";
 }
 
 std::string LLVMGenerator::getNumberedLabel(const char* label, int& num) {
