@@ -145,6 +145,8 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitType(Lexy2Parser::TypeContext* ctx) override {}
 
+  void exitStructAccess(Lexy2Parser::StructAccessContext* ctx) override;
+
   void enterFunctionCall(Lexy2Parser::FunctionCallContext* ctx) override;
   void exitFunctionCall(Lexy2Parser::FunctionCallContext* ctx) override;
 

@@ -1,0 +1,21 @@
+struct Dog {
+    age: int;
+    weight: double;
+}
+
+struct Car {
+    milage: double;
+    maxSpeed: double;
+}
+
+let doggy: Dog = 0;
+doggy.age = 10;
+doggy.weight = 12.34;
+__print doggy.age;
+__print doggy.weight;
+
+let mustang: Car = 0;
+mustang.milage = 3342.34;
+mustang.maxSpeed = 215.2;
+__print mustang.milage;
+__print mustang.maxSpeed;

@@ -42,6 +42,7 @@ class LLVMGenerator {
   int whileEndNumber = 0;
 
   int arrayIndexNumber = 0;
+  int structIndexNumber = 0;
 
   int callRegisterNumber = 0;
 
@@ -110,10 +111,14 @@ class LLVMGenerator {
   std::string castFloatToI32(const std::string& val);
   std::string extFloatToDouble(const std::string& val);
 
-  std::string getElementPtrInBounds(const std::string& array,
-                                    const std::string& element,
-                                    const std::string& bounds,
-                                    bool isInternalPtr);
+  std::string getArrElementPtrInBounds(const std::string& array,
+                                       const std::string& element,
+                                       const std::string& bounds,
+                                       bool isInternalPtr);
+
+  std::string getStructElementPtrInBounds(const std::string& array,
+                                          const std::string& element,
+                                          const std::string& bounds);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);

@@ -224,6 +224,15 @@ void TranslatorListener::exitFunctionDeclaration(
 
 void TranslatorListener::exitStructDeclaration(
     Lexy2Parser::StructDeclarationContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  if (symbolTable.getCurrentScopeID() != "") {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "structs can only be defined in global scope");
+    inErrorMode = true;
+    return;
+  }
   auto structName = ctx->IDENTIFIER()->getText();
   if (!typeManager.addType(structName)) {
     errorHandler.reportError(utils::getLineCol(ctx),
@@ -236,6 +245,12 @@ void TranslatorListener::exitStructDeclaration(
   struct_.name = std::move(structName);
 
   int fieldsCnt = fieldNames.size();
+  if (fieldsCnt == 0) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "empty structs not allowed");
+    inErrorMode = true;
+    return;
+  }
   for (int i = 0; i < fieldsCnt; ++i) {
     const auto& fieldName = fieldNames[i];
     const auto& fieldType = fieldTypes[i];
@@ -300,6 +315,9 @@ void TranslatorListener::enterFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
   symbolTable.enterNewScope();
   // allocate memory for arguments
+  if (inErrorMode)
+    return;
+
   for (const auto& param : functionParams.top()) {
     const auto& paramType = param.type;
     if (!paramType.isLeaf()) {
@@ -973,7 +991,7 @@ void TranslatorListener::exitElementIndex(
 
   auto typeStr = arr.type.getLLVMString(false);
 
-  auto arrayIdx = generator.getElementPtrInBounds(
+  auto arrayIdx = generator.getArrElementPtrInBounds(
       arr.name, idx.name, typeStr,
       arr.category == Value::Category::INTERNAL_PTR);
   auto peeledType = arr.type.getPeeledType();
@@ -986,6 +1004,53 @@ void TranslatorListener::exitElementIndex(
 
   valueStack.push(Value(arrayIdx, *arr.type.getPeeledType(),
                         Value::Category::INTERNAL_PTR));
+}
+
+void TranslatorListener::exitStructAccess(
+    Lexy2Parser::StructAccessContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto struct_ = valueStack.top();
+  valueStack.pop();
+
+  if (!struct_.type.isLeaf()) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Can't apply access operator to non-struct type");
+    inErrorMode = true;
+    return;
+  }
+
+  auto typeID = *struct_.type.getSimpleTypeId();
+  if (!typeManager.isStruct(typeID)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Can't apply access operator to non-struct type");
+    inErrorMode = true;
+    return;
+  }
+
+  auto typeStr = struct_.type.getLLVMString(false);
+  auto fieldName = ctx->IDENTIFIER()->getText();
+
+  const auto& fields = typeManager.getStruct(typeID).fields;
+  auto it =
+      std::find_if(fields.begin(), fields.end(),
+                   [&fieldName](const std::pair<std::string, types::Type>& x) {
+                     return x.first == fieldName;
+                   });
+  if (it == fields.end()) {
+    errorHandler.reportError(
+        utils::getLineCol(ctx),
+        "Field '" + fieldName + "' not declared for struct '" + struct_.name);
+    inErrorMode = true;
+    return;
+  }
+
+  int fieldIdx = std::distance(std::begin(fields), it);
+  auto structIdx = generator.getStructElementPtrInBounds(
+      struct_.name, std::to_string(fieldIdx), typeStr);
+
+  valueStack.push(Value(structIdx, it->second, Value::Category::INTERNAL_PTR));
 }
 
 void TranslatorListener::enterFunctionCall(

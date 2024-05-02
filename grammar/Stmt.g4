@@ -28,7 +28,7 @@ variableDeclaration: 'let' IDENTIFIER (':' type)? '=' expr ';';
 functionDeclaration:
 	'fn' functionName '(' paramList ')' ('->' returnType)? functionBody;
 
-structDeclaration: 'struct' IDENTIFIER '{' structField+ '}';
+structDeclaration: 'struct' IDENTIFIER '{' structField* '}';
 
 structField: IDENTIFIER ':' type ';';
 

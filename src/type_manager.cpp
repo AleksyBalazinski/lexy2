@@ -55,6 +55,10 @@ bool TypeManager::addStruct(TyID typeID, Struct&& struct_) {
   return true;
 }
 
+bool TypeManager::isStruct(TyID typeID) {
+  return structs.find(typeID) != structs.end();
+}
+
 const Struct& TypeManager::getStruct(TyID typeID) const {
   return structs.at(typeID);
 }

@@ -350,10 +350,21 @@ std::string LLVMGenerator::extFloatToDouble(const std::string& val) {
   return regStr;
 }
 
-std::string LLVMGenerator::getElementPtrInBounds(const std::string& array,
-                                                 const std::string& element,
-                                                 const std::string& bounds,
-                                                 bool isInternalPtr) {
+std::string LLVMGenerator::getStructElementPtrInBounds(
+    const std::string& structName, const std::string& element,
+    const std::string& bounds) {
+  const auto structIdxStr =
+      "%" + getNumberedLabel("structIdx", structIndexNumber);
+  getText() += getIndent() + structIdxStr + " = getelementptr inbounds " +
+               bounds + ", ptr %" + structName + ", i32 0, i32 " + element +
+               "\n";
+  return structIdxStr;
+}
+
+std::string LLVMGenerator::getArrElementPtrInBounds(const std::string& array,
+                                                    const std::string& element,
+                                                    const std::string& bounds,
+                                                    bool isInternalPtr) {
   const auto arrayIdxStr = "%" + getNumberedLabel("arrayIdx", arrayIndexNumber);
   auto arrStr = (isInternalPtr ? "" : "%") + array;
   getText() += getIndent() + arrayIdxStr + " = getelementptr inbounds " +

@@ -22,6 +22,8 @@ class TypeManager {
 
   bool addStruct(TyID typeID, Struct&& struct_);
 
+  bool isStruct(TyID typeID);
+
   const Struct& getStruct(TyID typeID) const;
 
   std::optional<TyID> getTypeID(const std::string& typeName) const;
