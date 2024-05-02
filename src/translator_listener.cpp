@@ -3,15 +3,11 @@
 #include <tuple>
 #include "types/llvm_str_visitor.hpp"
 #include "types/type.hpp"
+#include "utils.hpp"
 
 namespace lexy2 {
 TranslatorListener::TranslatorListener(ErrorHandler& errorHandler)
-    : errorHandler(errorHandler) {
-  typeIDs.insert(std::make_pair("int", INT_TYPE_ID));
-  typeIDs.insert(std::make_pair("double", DOUBLE_TYPE_ID));
-  typeIDs.insert(std::make_pair("bool", BOOL_TYPE_ID));
-  typeIDs.insert(std::make_pair("float", FLOAT_TYPE_ID));
-}
+    : errorHandler(errorHandler), typeNodeFactory(typeManager) {}
 
 void TranslatorListener::exitStatement(Lexy2Parser::StatementContext* ctx) {
   if (inErrorMode) {  // synchronize
@@ -34,17 +30,21 @@ void TranslatorListener::exitPrintIntrinsic(
   }
   if (value.type.isLeaf()) {
     int typeID = *value.type.getSimpleTypeId();
-    if (typeID == INT_TYPE_ID) {
+    if (!typeManager.isPrimitiveType(typeID)) {
+      errorHandler.reportError(utils::getLineCol(ctx),
+                               "print can only be used with built-in types");
+    }
+    if (typeID == typeManager.INT_TYPE_ID) {
       generator.printI32(value.name);
     }
-    if (typeID == DOUBLE_TYPE_ID) {
+    if (typeID == typeManager.DOUBLE_TYPE_ID) {
       generator.printDouble(value.name);
     }
-    if (typeID == BOOL_TYPE_ID) {
+    if (typeID == typeManager.BOOL_TYPE_ID) {
       const auto cast = generator.extBoolToI32(value.name);
       generator.printI32(cast);
     }
-    if (typeID == FLOAT_TYPE_ID) {
+    if (typeID == typeManager.FLOAT_TYPE_ID) {
       auto cast = generator.extFloatToDouble(value.name);
       generator.printDouble(cast);
     }
@@ -66,6 +66,12 @@ void TranslatorListener::exitReadIntrinsic(
   }
   if (value.type.isLeaf()) {
     int typeID = *value.type.getSimpleTypeId();
+    if (!typeManager.isPrimitiveType(typeID)) {
+      errorHandler.reportError(utils::getLineCol(ctx),
+                               "read can only be used with built-in types");
+      inErrorMode = true;
+      return;
+    }
     generator.read(value.name, value.type,
                    value.category == Value::Category::INTERNAL_PTR);
   }
@@ -93,11 +99,13 @@ Error<std::string> TranslatorListener::declareVariable(
   }
 
   if (declaredType.has_value()) {
-    if (declaredType->isLeaf()) {
+    if (declaredType->isLeaf() &&
+        !dynamic_cast<const types::LeafNode&>(declaredType->getRoot())
+             .isUserDefined()) {
       if (!areSameType(loadedInitializer.type, *declaredType)) {
         loadedInitializer = castRegister(loadedInitializer, *declaredType);
       }
-    } else if (declaredType->isArray()) {
+    } else {
       loadedInitializer.type = *declaredType;
     }
   }
@@ -105,14 +113,16 @@ Error<std::string> TranslatorListener::declareVariable(
   const auto scopedIdentifier = identifier + symbolTable.getCurrentScopeID();
 
   if (loadedInitializer.type.isLeaf() &&
-      loadedInitializer.type.getSimpleTypeId() == BOOL_TYPE_ID) {
+      loadedInitializer.type.getSimpleTypeId() == typeManager.BOOL_TYPE_ID) {
     loadedInitializer.name = generator.extI1toI8(loadedInitializer.name);
   }
 
   const auto& initializerType = loadedInitializer.type;
 
   generator.createDeclaration(initializerType, scopedIdentifier, false);
-  if (!declaredType->isArray()) {
+  if (initializerType.isLeaf() &&
+      !dynamic_cast<const types::LeafNode&>(initializerType.getRoot())
+           .isUserDefined()) {
     generator.createAssignment(initializerType, scopedIdentifier,
                                loadedInitializer.name, false);
   }
@@ -130,6 +140,12 @@ void TranslatorListener::exitVariableDeclaration(
     return;
 
   auto identifier = ctx->IDENTIFIER()->getText();
+  if (typeManager.getTypeID(identifier)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Type name not allowed in this context");
+    inErrorMode = true;
+    return;
+  }
   if (valueStack.empty()) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "No initializer for '" + identifier + "'");
@@ -162,9 +178,9 @@ void TranslatorListener::enterFunctionDeclaration(
 Error<std::string> TranslatorListener::declareFunction(
     const std::string& functionName, const types::Type& retType,
     const std::vector<FunctionParam>& functionParams) {
-  if (symbolTable.currentScopeFind(functionNames.top()) !=
+  if (symbolTable.currentScopeFind(functionName) !=
       symbolTable.getCurrentScope().end()) {
-    return error("Identifier '" + functionNames.top() + "' already in use");
+    return error("Identifier '" + functionName + "' already in use");
   }
 
   if (!retType.isLeaf()) {
@@ -189,6 +205,9 @@ Error<std::string> TranslatorListener::declareFunction(
 
 void TranslatorListener::exitFunctionDeclaration(
     Lexy2Parser::FunctionDeclarationContext* ctx) {
+  if (inErrorMode)
+    return;
+
   auto err = declareFunction(functionNames.top(), retTypesStack.top(),
                              functionParams.top());
   if (err) {
@@ -203,9 +222,77 @@ void TranslatorListener::exitFunctionDeclaration(
   generator.exitFunction();
 }
 
+void TranslatorListener::exitStructDeclaration(
+    Lexy2Parser::StructDeclarationContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  if (symbolTable.getCurrentScopeID() != "") {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "structs can only be defined in global scope");
+    inErrorMode = true;
+    return;
+  }
+  auto structName = ctx->IDENTIFIER()->getText();
+  if (!typeManager.addType(structName)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Type name '" + structName + "' already declared");
+    inErrorMode = true;
+    return;
+  }
+  auto typeID = *typeManager.getTypeID(structName);
+  Struct struct_;
+  struct_.name = std::move(structName);
+
+  int fieldsCnt = fieldNames.size();
+  if (fieldsCnt == 0) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "empty structs not allowed");
+    inErrorMode = true;
+    return;
+  }
+  for (int i = 0; i < fieldsCnt; ++i) {
+    const auto& fieldName = fieldNames[i];
+    const auto& fieldType = fieldTypes[i];
+    auto it = std::find_if(
+        struct_.fields.begin(), struct_.fields.end(),
+        [&fieldName](const std::pair<std::string, types::Type>& x) {
+          return x.first == fieldName;
+        });
+    if (it != struct_.fields.end()) {
+      errorHandler.reportError(utils::getLineCol(ctx),
+                               "Redefinition of field '" + fieldName +
+                                   "' in struct '" + struct_.name);
+      inErrorMode = true;
+      return;
+    }
+    struct_.fields.emplace_back(std::move(fieldName), std::move(fieldType));
+  }
+
+  generator.createStruct(struct_);
+  typeManager.addStruct(typeID, std::move(struct_));
+
+  fieldNames.clear();
+  fieldTypes.clear();
+}
+
+void TranslatorListener::exitStructField(Lexy2Parser::StructFieldContext* ctx) {
+  auto fieldName = ctx->IDENTIFIER()->getText();
+
+  fieldNames.emplace_back(std::move(fieldName));
+  fieldTypes.emplace_back(std::move(currTypeNode));
+}
+
 void TranslatorListener::exitFunctionName(
     Lexy2Parser::FunctionNameContext* ctx) {
-  functionNames.push(ctx->IDENTIFIER()->getText());
+  auto functionName = ctx->IDENTIFIER()->getText();
+  functionNames.push(functionName);
+  if (typeManager.getTypeID(functionName)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Type name not allowed in this context");
+    inErrorMode = true;
+    return;
+  }
 }
 
 void TranslatorListener::exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) {
@@ -214,6 +301,12 @@ void TranslatorListener::exitReturnType(Lexy2Parser::ReturnTypeContext* ctx) {
 
 void TranslatorListener::exitParam(Lexy2Parser::ParamContext* ctx) {
   auto paramName = ctx->IDENTIFIER()->getText();
+  if (typeManager.getTypeID(paramName)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Type name not allowed in this context");
+    inErrorMode = true;
+    return;
+  }
   functionParams.top().push_back(
       FunctionParam(paramName, types::Type(std::move(currTypeNode))));
 }
@@ -222,6 +315,9 @@ void TranslatorListener::enterFunctionBody(
     Lexy2Parser::FunctionBodyContext* ctx) {
   symbolTable.enterNewScope();
   // allocate memory for arguments
+  if (inErrorMode)
+    return;
+
   for (const auto& param : functionParams.top()) {
     const auto& paramType = param.type;
     if (!paramType.isLeaf()) {
@@ -229,7 +325,7 @@ void TranslatorListener::enterFunctionBody(
     }
     auto typeID = *paramType.getSimpleTypeId();
     const auto scopedIdentifier = param.name + symbolTable.getCurrentScopeID();
-    if (typeID == BOOL_TYPE_ID) {
+    if (typeID == typeManager.BOOL_TYPE_ID) {
       auto extParam = generator.extI1toI8("%" + param.name);
       generator.createDeclaration(paramType, scopedIdentifier, false);
       generator.createAssignment(paramType, scopedIdentifier, extParam, false);
@@ -278,7 +374,7 @@ void TranslatorListener::exitReturnStatement(
   }
 
   auto typeID = *value.type.getSimpleTypeId();
-  if (typeID == BOOL_TYPE_ID) {
+  if (typeID == typeManager.BOOL_TYPE_ID) {
     value.name = generator.extI1toI8(value.name);
   }
 
@@ -303,7 +399,7 @@ void TranslatorListener::exitCondition(Lexy2Parser::ConditionContext* ctx) {
 
   Value cond = std::move(valueStack.top());
   valueStack.pop();
-  if (cond.type.getRoot().getSimpleTypeId() != BOOL_TYPE_ID) {
+  if (cond.type.getRoot().getSimpleTypeId() != typeManager.BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Condition must be of boolean type");
     inErrorMode = true;
@@ -424,7 +520,7 @@ void TranslatorListener::exitWhileLoopCondition(
 
   Value cond = std::move(valueStack.top());
   valueStack.pop();
-  if (cond.type.getRoot().getSimpleTypeId() != BOOL_TYPE_ID) {
+  if (cond.type.getRoot().getSimpleTypeId() != typeManager.BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Condition must be of boolean type");
     inErrorMode = true;
@@ -487,8 +583,8 @@ void TranslatorListener::exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.type.getSimpleTypeId() != BOOL_TYPE_ID ||
-      right.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+  if (left.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID ||
+      right.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Both operands of '&' must be of boolean type");
     inErrorMode = true;
@@ -504,11 +600,11 @@ void TranslatorListener::exitLogicalAnd(Lexy2Parser::LogicalAndContext* ctx) {
 
   auto result = generator.createBinOp(
       LLVMGenerator::BinOpName::AND,
-      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::BOOL_TYPE_ID)),
       left.name, right.name);
 
-  valueStack.push(Value(result, types::Type(std::make_unique<types::LeafNode>(
-                                    PrimitiveType::BOOL))));
+  valueStack.push(Value(result, types::Type(typeNodeFactory.createLeafNode(
+                                    TypeManager::BOOL_TYPE_ID))));
 }
 
 void TranslatorListener::exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) {
@@ -516,8 +612,8 @@ void TranslatorListener::exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) {
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.type.getSimpleTypeId() != BOOL_TYPE_ID ||
-      right.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+  if (left.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID ||
+      right.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Both operands of '|' must be of boolean type");
     inErrorMode = true;
@@ -533,11 +629,11 @@ void TranslatorListener::exitLogicalOr(Lexy2Parser::LogicalOrContext* ctx) {
 
   auto result = generator.createBinOp(
       LLVMGenerator::BinOpName::OR,
-      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::BOOL_TYPE_ID)),
       left.name, right.name);
 
-  valueStack.push(Value(result, types::Type(std::make_unique<types::LeafNode>(
-                                    PrimitiveType::BOOL))));
+  valueStack.push(Value(result, types::Type(typeNodeFactory.createLeafNode(
+                                    TypeManager::BOOL_TYPE_ID))));
 }
 
 void TranslatorListener::exitLogicalXor(Lexy2Parser::LogicalXorContext* ctx) {
@@ -545,8 +641,8 @@ void TranslatorListener::exitLogicalXor(Lexy2Parser::LogicalXorContext* ctx) {
     return;
 
   auto [left, right] = utils::popTwo(valueStack);
-  if (left.type.getSimpleTypeId() != BOOL_TYPE_ID ||
-      right.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+  if (left.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID ||
+      right.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Both operands of '^' must be of boolean type");
     inErrorMode = true;
@@ -562,11 +658,11 @@ void TranslatorListener::exitLogicalXor(Lexy2Parser::LogicalXorContext* ctx) {
 
   auto result = generator.createBinOp(
       LLVMGenerator::BinOpName::XOR,
-      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::BOOL_TYPE_ID)),
       left.name, right.name);
 
-  valueStack.push(Value(result, types::Type(std::make_unique<types::LeafNode>(
-                                    PrimitiveType::BOOL))));
+  valueStack.push(Value(result, types::Type(typeNodeFactory.createLeafNode(
+                                    TypeManager::BOOL_TYPE_ID))));
 }
 
 void TranslatorListener::exitEquality(Lexy2Parser::EqualityContext* ctx) {
@@ -763,9 +859,15 @@ void TranslatorListener::exitCast(Lexy2Parser::CastContext* ctx) {
   if (value.isInMemory()) {
     value = load(value);
   }
-  const auto targetTypeStr = ctx->TYPE_ID()->getText();
-  auto targetType = types::Type(std::make_unique<types::LeafNode>(
-      static_cast<PrimitiveType>(typeIDs[targetTypeStr])));
+  const auto targetTypeStr = ctx->IDENTIFIER()->getText();
+  auto targetTypeID = typeManager.getTypeID(targetTypeStr);
+  if (!targetTypeID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "'" + targetTypeStr + "' does not name a type");
+    inErrorMode = true;
+    return;
+  }
+  auto targetType = types::Type(typeNodeFactory.createLeafNode(*targetTypeID));
   if (!areSameType(value.type, targetType))
     valueStack.push(castRegister(value, targetType));
 }
@@ -801,7 +903,7 @@ void TranslatorListener::exitUnary(Lexy2Parser::UnaryContext* ctx) {
     valueStack.push(plusRegister(value));
   }
   if (ctx->op->getText() == "!") {
-    if (value.type.getSimpleTypeId() != BOOL_TYPE_ID) {
+    if (value.type.getSimpleTypeId() != typeManager.BOOL_TYPE_ID) {
       errorHandler.reportError(
           utils::getLineCol(ctx),
           "Unary operator '!' can only be applied to boolean argument");
@@ -820,6 +922,12 @@ void TranslatorListener::exitIdentifier(Lexy2Parser::IdentifierContext* ctx) {
     return;
 
   const auto id = ctx->IDENTIFIER()->getText();
+  if (typeManager.getTypeID(id)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Type name not allowed in this context");
+    inErrorMode = true;
+    return;
+  }
   const auto [loc, depth] = symbolTable.globalFind(id);
   if (loc != symbolTable.end()) {
     auto scopedIdentifier = loc->second;
@@ -837,10 +945,10 @@ void TranslatorListener::exitIntegerLiteral(
   if (inErrorMode)
     return;
 
-  valueStack.push(
-      Value(ctx->INTEGER_LITERAL()->getText(),
-            types::Type(std::make_unique<types::LeafNode>(PrimitiveType::INT)),
-            Value::Category::CONSTANT));
+  valueStack.push(Value(
+      ctx->INTEGER_LITERAL()->getText(),
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::INT_TYPE_ID)),
+      Value::Category::CONSTANT));
 }
 
 void TranslatorListener::exitFloatLiteral(
@@ -850,7 +958,7 @@ void TranslatorListener::exitFloatLiteral(
 
   valueStack.push(Value(
       ctx->FLOAT_LITERAL()->getText(),
-      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::DOUBLE)),
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::DOUBLE_TYPE_ID)),
       Value::Category::CONSTANT));
 }
 
@@ -858,10 +966,10 @@ void TranslatorListener::exitBoolLiteral(Lexy2Parser::BoolLiteralContext* ctx) {
   if (inErrorMode)
     return;
 
-  valueStack.push(
-      Value(ctx->BOOL_LITERAL()->getText(),
-            types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)),
-            Value::Category::CONSTANT));
+  valueStack.push(Value(
+      ctx->BOOL_LITERAL()->getText(),
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::BOOL_TYPE_ID)),
+      Value::Category::CONSTANT));
 }
 
 void TranslatorListener::exitElementIndex(
@@ -870,7 +978,7 @@ void TranslatorListener::exitElementIndex(
     return;
 
   auto [arr, idx] = utils::popTwo(valueStack);
-  if (idx.type.getSimpleTypeId() != INT_TYPE_ID) {
+  if (idx.type.getSimpleTypeId() != typeManager.INT_TYPE_ID) {
     errorHandler.reportError(utils::getLineCol(ctx),
                              "Only int allowed as the type of the indexer");
     inErrorMode = true;
@@ -883,7 +991,7 @@ void TranslatorListener::exitElementIndex(
 
   auto typeStr = arr.type.getLLVMString(false);
 
-  auto arrayIdx = generator.getElementPtrInBounds(
+  auto arrayIdx = generator.getArrElementPtrInBounds(
       arr.name, idx.name, typeStr,
       arr.category == Value::Category::INTERNAL_PTR);
   auto peeledType = arr.type.getPeeledType();
@@ -896,6 +1004,53 @@ void TranslatorListener::exitElementIndex(
 
   valueStack.push(Value(arrayIdx, *arr.type.getPeeledType(),
                         Value::Category::INTERNAL_PTR));
+}
+
+void TranslatorListener::exitStructAccess(
+    Lexy2Parser::StructAccessContext* ctx) {
+  if (inErrorMode)
+    return;
+
+  auto struct_ = valueStack.top();
+  valueStack.pop();
+
+  if (!struct_.type.isLeaf()) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Can't apply access operator to non-struct type");
+    inErrorMode = true;
+    return;
+  }
+
+  auto typeID = *struct_.type.getSimpleTypeId();
+  if (!typeManager.isStruct(typeID)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Can't apply access operator to non-struct type");
+    inErrorMode = true;
+    return;
+  }
+
+  auto typeStr = struct_.type.getLLVMString(false);
+  auto fieldName = ctx->IDENTIFIER()->getText();
+
+  const auto& fields = typeManager.getStruct(typeID).fields;
+  auto it =
+      std::find_if(fields.begin(), fields.end(),
+                   [&fieldName](const std::pair<std::string, types::Type>& x) {
+                     return x.first == fieldName;
+                   });
+  if (it == fields.end()) {
+    errorHandler.reportError(
+        utils::getLineCol(ctx),
+        "Field '" + fieldName + "' not declared for struct '" + struct_.name);
+    inErrorMode = true;
+    return;
+  }
+
+  int fieldIdx = std::distance(std::begin(fields), it);
+  auto structIdx = generator.getStructElementPtrInBounds(
+      struct_.name, std::to_string(fieldIdx), typeStr);
+
+  valueStack.push(Value(structIdx, it->second, Value::Category::INTERNAL_PTR));
 }
 
 void TranslatorListener::enterFunctionCall(
@@ -975,9 +1130,15 @@ void TranslatorListener::exitRankSpecifier(
 }
 
 void TranslatorListener::exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) {
-  auto typeID = typeIDs[ctx->TYPE_ID()->getText()];
-  currTypeNode =
-      std::make_unique<types::LeafNode>(static_cast<PrimitiveType>(typeID));
+  auto typeStr = ctx->IDENTIFIER()->getText();
+  auto typeID = typeManager.getTypeID(ctx->IDENTIFIER()->getText());
+  if (!typeID) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "'" + typeStr + "' does not name a type");
+    inErrorMode = true;
+    return;
+  }
+  currTypeNode = typeNodeFactory.createLeafNode(*typeID);
 }
 
 std::string TranslatorListener::getCode(const std::string& sourceFilename) {

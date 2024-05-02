@@ -8,15 +8,15 @@ void types::LLVMStrVisitor::visit(const ArrayNode& arrayType) {
   text = "[" + std::to_string(arrayType.getDim()) + " x " + text + "]";
 }
 
-std::string getTypeString(PrimitiveType primitiveType, bool boolAsI1) {
-  switch (primitiveType) {
-    case PrimitiveType::INT:
+std::string getTypeString(TypeManager::TyID typeID, bool boolAsI1) {
+  switch (typeID) {
+    case TypeManager::INT_TYPE_ID:
       return "i32";
-    case PrimitiveType::DOUBLE:
+    case TypeManager::DOUBLE_TYPE_ID:
       return "double";
-    case PrimitiveType::BOOL:
+    case TypeManager::BOOL_TYPE_ID:
       return boolAsI1 ? "i1" : "i8";
-    case PrimitiveType::FLOAT:
+    case TypeManager::FLOAT_TYPE_ID:
       return "float";
     default:
       return "";
@@ -24,7 +24,13 @@ std::string getTypeString(PrimitiveType primitiveType, bool boolAsI1) {
 }
 
 void types::LLVMStrVisitor::visit(const LeafNode& LeafNode) {
-  text = getTypeString(LeafNode.getPrimitiveType(), boolAsI1);
+  if (LeafNode.isUserDefined()) {
+    auto typeID = LeafNode.getTypeID();
+    const auto& struct_ = LeafNode.typeManager.getStruct(typeID);
+    text = "%struct." + struct_.name;
+    return;
+  }
+  text = getTypeString(LeafNode.getTypeID(), boolAsI1);
 }
 
 void types::LLVMStrVisitor::visit(const FunctionNode& functionNode) {

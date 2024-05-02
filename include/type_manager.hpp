@@ -1,13 +1,41 @@
 #pragma once
 
-#include "code_gen/llvm_generator.hpp"
+#include <unordered_map>
+#include <unordered_set>
 #include "operations.hpp"
-#include "primitive_type.hpp"
+#include "struct.hpp"
 #include "types/type.hpp"
 
 namespace lexy2 {
 
 class TypeManager {
+ public:
+  using TyID = int;
+
+  TypeManager();
+
+  bool isImplicitFromTo(const types::Type& from, const types::Type& to) const;
+
+  bool isOperatorSupported(Operator op, const types::Type& type) const;
+
+  bool addType(const std::string& typeName);
+
+  bool addStruct(TyID typeID, Struct&& struct_);
+
+  bool isStruct(TyID typeID);
+
+  const Struct& getStruct(TyID typeID) const;
+
+  std::optional<TyID> getTypeID(const std::string& typeName) const;
+
+  bool isPrimitiveType(TyID typeID) const;
+
+  static const TyID INT_TYPE_ID = 0;
+  static const TyID DOUBLE_TYPE_ID = 1;
+  static const TyID BOOL_TYPE_ID = 2;
+  static const TyID FLOAT_TYPE_ID = 3;
+
+ private:
   bool implicitConversions[4][4] = {
       //      to
       // ---------------
@@ -34,22 +62,11 @@ class TypeManager {
       {true, true, false, true}     // ne
   };
 
- public:
-  bool isImplicitFromTo(const types::Type& from, const types::Type& to) {
-    if (!from.isLeaf() || !to.isLeaf()) {
-      return false;
-    }
-    int fromID = *from.getSimpleTypeId();
-    int toID = *to.getSimpleTypeId();
-    return implicitConversions[fromID][toID];
-  }
+  std::unordered_map<std::string, TyID> typeIDs;
 
-  bool isOperatorSupported(Operator op, const types::Type& type) {
-    if (!type.isLeaf()) {
-      return false;
-    }
-    int typeID = *type.getSimpleTypeId();
-    return operatorSupport[static_cast<int>(op)][typeID];
-  }
+  std::unordered_map<TyID, Struct> structs;
+
+  std::unordered_set<TyID> primitiveTypeIDs;
+
 };  // namespace lexy2
 }  // namespace lexy2

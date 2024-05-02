@@ -1,4 +1,5 @@
 #include "translator_listener.hpp"
+#include "utils.hpp"
 
 namespace lexy2 {
 Value TranslatorListener::addRegisters(const Value& left, const Value& right) {
@@ -57,7 +58,6 @@ Value TranslatorListener::castRegister(const Value& value,
     return value;  // do nothing
   }
 
-  PrimitiveType targetPrimitive = static_cast<PrimitiveType>(targetTypeID);
   if (value.category == Value::Category::CONSTANT) {
     if (generator.supportsLiteralTranslation(value.type, targetType)) {
       auto str = generator.getLiteral(value.type, targetType, value.name);
@@ -65,56 +65,50 @@ Value TranslatorListener::castRegister(const Value& value,
     }
   }
 
-  if (typeID == INT_TYPE_ID) {
-    if (targetTypeID == DOUBLE_TYPE_ID) {
+  if (typeID == typeManager.INT_TYPE_ID) {
+    if (targetTypeID == typeManager.DOUBLE_TYPE_ID) {
       auto regStr = generator.castI32ToDouble(value.name);
-      return Value(
-          regStr,
-          types::Type(std::make_unique<types::LeafNode>(targetPrimitive)));
+      return Value(regStr,
+                   types::Type(typeNodeFactory.createLeafNode(targetTypeID)));
     }
   }
-  if (typeID == INT_TYPE_ID) {
-    if (targetTypeID == FLOAT_TYPE_ID) {
+  if (typeID == typeManager.INT_TYPE_ID) {
+    if (targetTypeID == typeManager.FLOAT_TYPE_ID) {
       auto regStr = generator.castI32ToFloat(value.name);
-      return Value(
-          regStr,
-          types::Type(std::make_unique<types::LeafNode>(targetPrimitive)));
+      return Value(regStr,
+                   types::Type(typeNodeFactory.createLeafNode(targetTypeID)));
     }
   }
-  if (typeID == DOUBLE_TYPE_ID) {
-    if (targetTypeID == INT_TYPE_ID) {
+  if (typeID == typeManager.DOUBLE_TYPE_ID) {
+    if (targetTypeID == typeManager.INT_TYPE_ID) {
       auto regStr = generator.castDoubleToI32(value.name);
-      return Value(
-          regStr,
-          types::Type(std::make_unique<types::LeafNode>(targetPrimitive)));
+      return Value(regStr,
+                   types::Type(typeNodeFactory.createLeafNode(targetTypeID)));
     }
   }
-  if (typeID == DOUBLE_TYPE_ID) {
-    if (targetTypeID == FLOAT_TYPE_ID) {
+  if (typeID == typeManager.DOUBLE_TYPE_ID) {
+    if (targetTypeID == typeManager.FLOAT_TYPE_ID) {
       auto regStr = generator.truncDoubleToFloat(value.name);
-      return Value(
-          regStr,
-          types::Type(std::make_unique<types::LeafNode>(targetPrimitive)));
+      return Value(regStr,
+                   types::Type(typeNodeFactory.createLeafNode(targetTypeID)));
     }
   }
-  if (typeID == FLOAT_TYPE_ID) {
-    if (targetTypeID == INT_TYPE_ID) {
+  if (typeID == typeManager.FLOAT_TYPE_ID) {
+    if (targetTypeID == typeManager.INT_TYPE_ID) {
       auto regStr = generator.castFloatToI32(value.name);
-      return Value(
-          regStr,
-          types::Type(std::make_unique<types::LeafNode>(targetPrimitive)));
+      return Value(regStr,
+                   types::Type(typeNodeFactory.createLeafNode(targetTypeID)));
     }
   }
-  if (typeID == FLOAT_TYPE_ID) {
-    if (targetTypeID == DOUBLE_TYPE_ID) {
+  if (typeID == typeManager.FLOAT_TYPE_ID) {
+    if (targetTypeID == typeManager.DOUBLE_TYPE_ID) {
       auto regStr = generator.extFloatToDouble(value.name);
-      return Value(
-          regStr,
-          types::Type(std::make_unique<types::LeafNode>(targetPrimitive)));
+      return Value(regStr,
+                   types::Type(typeNodeFactory.createLeafNode(targetTypeID)));
     }
   }
-  if (typeID == BOOL_TYPE_ID) {
-    if (targetTypeID == INT_TYPE_ID) {}
+  if (typeID == typeManager.BOOL_TYPE_ID) {
+    if (targetTypeID == typeManager.INT_TYPE_ID) {}
   }
   throw std::runtime_error("Not implemented");  // TODO: user defined types
 }
@@ -138,11 +132,10 @@ Value TranslatorListener::compareRegisters(Value left, Value right,
   if (!left.type.getSimpleTypeId().has_value())
     throw std::invalid_argument("compare registers");
 
-  auto regStr =
-      generator.createRel(left.type, toLLVMRel(rel), left.name, right.name);
+  auto regStr = generator.createRel(left.type, rel, left.name, right.name);
   return Value(
       regStr,
-      types::Type(std::make_unique<types::LeafNode>(PrimitiveType::BOOL)));
+      types::Type(typeNodeFactory.createLeafNode(TypeManager::BOOL_TYPE_ID)));
 }
 
 Value TranslatorListener::load(const Value& val) {
@@ -151,7 +144,7 @@ Value TranslatorListener::load(const Value& val) {
 
   int typeID = *val.type.getSimpleTypeId();
   bool isInternalPtr = val.category == Value::Category::INTERNAL_PTR;
-  if (typeID == BOOL_TYPE_ID) {
+  if (typeID == typeManager.BOOL_TYPE_ID) {
     auto loaded =
         generator.createLoad(val.type, val.name, false, isInternalPtr);
     return Value(generator.truncateI8ToI1(loaded), types::Type(val.type));
@@ -236,7 +229,7 @@ void TranslatorListener::assignToVariable(const Value& lhs, Value& value,
   const auto scopedIdentifier = identifier + symbolTable.getScopeID(depth);
   if (variable.type.isLeaf()) {
     int variableTypeID = *variable.type.getSimpleTypeId();
-    if (variableTypeID == BOOL_TYPE_ID) {
+    if (variableTypeID == typeManager.BOOL_TYPE_ID) {
       value.name = generator.extI1toI8(value.name);
     }
     generator.createAssignment(variable.type, scopedIdentifier, value.name,
@@ -294,7 +287,7 @@ void TranslatorListener::assignToInternalPtr(
   const auto scopedIdentifier = lhs.name;
   if (variable.type.isLeaf()) {
     int variableTypeID = *variable.type.getSimpleTypeId();
-    if (variableTypeID == BOOL_TYPE_ID) {
+    if (variableTypeID == typeManager.BOOL_TYPE_ID) {
       value.name = generator.extI1toI8(value.name);
     }
     generator.createAssignment(variable.type, scopedIdentifier, value.name,

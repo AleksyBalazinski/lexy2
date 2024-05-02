@@ -60,32 +60,32 @@ std::string LLVMGenerator::getOperationString(BinOpName op) {
   }
 }
 
-std::string LLVMGenerator::getRelName(RelName relName) {
-  switch (relName) {
-    case RelName::EQ:
+std::string LLVMGenerator::getRelName(Relation Relation) {
+  switch (Relation) {
+    case Relation::EQ:
       return "eq";
-    case RelName::NE:
+    case Relation::NEQ:
       return "ne";
-    case RelName::GE:
+    case Relation::GE:
       return "ge";
-    case RelName::GT:
+    case Relation::GT:
       return "gt";
-    case RelName::LE:
+    case Relation::LE:
       return "le";
-    case RelName::LT:
+    case Relation::LT:
       return "lt";
     default:
       return "";
   }
 }
 
-std::string LLVMGenerator::getRelNamePrefix(RelName relName,
+std::string LLVMGenerator::getRelNamePrefix(Relation Relation,
                                             const types::Type& type) {
   if (type.isFloatingPoint()) {
     return "o";
   }
   if (type.isInteral()) {
-    if (relName == RelName::EQ || relName == RelName::NE)
+    if (Relation == Relation::EQ || Relation == Relation::NEQ)
       return "";
     else
       return "s";
@@ -112,12 +112,12 @@ std::string LLVMGenerator::createBinOp(BinOpName op, const types::Type& type,
   ++reg;
   return regStr;
 }
-std::string LLVMGenerator::createRel(const types::Type& type, RelName relName,
+std::string LLVMGenerator::createRel(const types::Type& type, Relation Relation,
                                      const std::string& arg1,
                                      const std::string& arg2) {
   const auto regStr = getRegStr();
   getText() += getIndent() + regStr + " = " + getRelPrefix(type) + "cmp" + " " +
-               getRelNamePrefix(relName, type) + getRelName(relName) + " " +
+               getRelNamePrefix(Relation, type) + getRelName(Relation) + " " +
                type.getLLVMString(true) + " " + arg1 + ", " + arg2 + "\n";
   ++reg;
   return regStr;
@@ -210,6 +210,19 @@ void LLVMGenerator::enterFunction() {
   functionDefs.push(node.get());
   activeFunctions.push(node.get());
   graph.insertNode(std::move(node));
+}
+
+void LLVMGenerator::createStruct(const Struct& struct_) {
+  std::string structStr;
+  structStr += "%struct." + struct_.name + " = type { ";
+  const char* delim = "";
+  for (const auto& field : struct_.fields) {
+    structStr += delim + field.second.getLLVMString(false);
+    delim = ", ";
+  }
+  structStr += " }";
+
+  structsDeclarations += structStr + "\n";
 }
 
 void LLVMGenerator::createReturn(const types::Type& type,
@@ -337,10 +350,21 @@ std::string LLVMGenerator::extFloatToDouble(const std::string& val) {
   return regStr;
 }
 
-std::string LLVMGenerator::getElementPtrInBounds(const std::string& array,
-                                                 const std::string& element,
-                                                 const std::string& bounds,
-                                                 bool isInternalPtr) {
+std::string LLVMGenerator::getStructElementPtrInBounds(
+    const std::string& structName, const std::string& element,
+    const std::string& bounds) {
+  const auto structIdxStr =
+      "%" + getNumberedLabel("structIdx", structIndexNumber);
+  getText() += getIndent() + structIdxStr + " = getelementptr inbounds " +
+               bounds + ", ptr %" + structName + ", i32 0, i32 " + element +
+               "\n";
+  return structIdxStr;
+}
+
+std::string LLVMGenerator::getArrElementPtrInBounds(const std::string& array,
+                                                    const std::string& element,
+                                                    const std::string& bounds,
+                                                    bool isInternalPtr) {
   const auto arrayIdxStr = "%" + getNumberedLabel("arrayIdx", arrayIndexNumber);
   auto arrStr = (isInternalPtr ? "" : "%") + array;
   getText() += getIndent() + arrayIdxStr + " = getelementptr inbounds " +
@@ -371,13 +395,13 @@ void LLVMGenerator::read(const std::string& id, const types::Type& type,
     throw std::invalid_argument("Can't read non leaf types");
   }
   const auto& leafType = dynamic_cast<const types::LeafNode&>(type.getRoot());
-  auto primitive = static_cast<PrimitiveType>(*leafType.getSimpleTypeId());
+  auto primitive = *leafType.getSimpleTypeId();
   std::string fStr;
-  if (primitive == PrimitiveType::INT) {
+  if (primitive == TypeManager::INT_TYPE_ID) {
     fStr = "@formatInt";
-  } else if (primitive == PrimitiveType::DOUBLE) {
+  } else if (primitive == TypeManager::DOUBLE_TYPE_ID) {
     fStr = "@formatDouble";
-  } else if (primitive == PrimitiveType::FLOAT) {
+  } else if (primitive == TypeManager::FLOAT_TYPE_ID) {
     fStr = "@formatFloat";
   } else {
     throw std::invalid_argument("Not implemented for typeid " +
@@ -396,6 +420,7 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
       "target triple = \"x86_64-w64-windows-gnu\"\n\n";  // TODO: obtain this somehow
   code += getPrintfFormatStrings() + "\n";
   code += getCStdLibDeclarations() + "\n";
+  code += structsDeclarations + (structsDeclarations.empty() ? "" : "\n");
   TopologicalSorter sorter;
   auto orderedFunctions = sorter.getOrdered(graph);
   std::string functionDefinitions;
@@ -430,14 +455,14 @@ bool LLVMGenerator::supportsLiteralTranslation(const types::Type& from,
   }
   const auto& fromLeaf = dynamic_cast<const types::LeafNode&>(from.getRoot());
   const auto& toLeaf = dynamic_cast<const types::LeafNode&>(to.getRoot());
-  if (fromLeaf.getPrimitiveType() == PrimitiveType::INT) {
-    if (toLeaf.getPrimitiveType() == PrimitiveType::DOUBLE ||
-        toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
+  if (fromLeaf.getTypeID() == TypeManager::INT_TYPE_ID) {
+    if (toLeaf.getTypeID() == TypeManager::DOUBLE_TYPE_ID ||
+        toLeaf.getTypeID() == TypeManager::FLOAT_TYPE_ID) {
       return true;
     }
   }
-  if (fromLeaf.getPrimitiveType() == PrimitiveType::DOUBLE) {
-    if (toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
+  if (fromLeaf.getTypeID() == TypeManager::DOUBLE_TYPE_ID) {
+    if (toLeaf.getTypeID() == TypeManager::FLOAT_TYPE_ID) {
       return true;
     }
   }
@@ -452,14 +477,14 @@ std::string LLVMGenerator::getLiteral(const types::Type& from,
 
   auto& fromLeaf = dynamic_cast<const types::LeafNode&>(from.getRoot());
   auto& toLeaf = dynamic_cast<const types::LeafNode&>(to.getRoot());
-  if (fromLeaf.getPrimitiveType() == PrimitiveType::INT) {
-    if (toLeaf.getPrimitiveType() == PrimitiveType::DOUBLE ||
-        toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
+  if (fromLeaf.getTypeID() == TypeManager::INT_TYPE_ID) {
+    if (toLeaf.getTypeID() == TypeManager::DOUBLE_TYPE_ID ||
+        toLeaf.getTypeID() == TypeManager::FLOAT_TYPE_ID) {
       return literal + ".0";
     }
   }
-  if (fromLeaf.getPrimitiveType() == PrimitiveType::DOUBLE) {
-    if (toLeaf.getPrimitiveType() == PrimitiveType::FLOAT) {
+  if (fromLeaf.getTypeID() == TypeManager::DOUBLE_TYPE_ID) {
+    if (toLeaf.getTypeID() == TypeManager::FLOAT_TYPE_ID) {
       std::stringstream buffer;
       double x = std::stof(literal);
       buffer << std::hex << *reinterpret_cast<uint64_t*>(&x);

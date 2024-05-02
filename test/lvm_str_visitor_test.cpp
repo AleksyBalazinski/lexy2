@@ -7,7 +7,9 @@
 using namespace lexy2;
 
 TEST(LLVMStrVisitorTest, GenerationTests) {
-  auto leaf = std::make_unique<types::LeafNode>(PrimitiveType::INT);
+  TypeManager typeManager;
+  auto leaf =
+      std::make_unique<types::LeafNode>(TypeManager::INT_TYPE_ID, typeManager);
   auto a1 = std::make_unique<types::ArrayNode>(3, std::move(leaf));
   auto a2 = std::make_unique<types::ArrayNode>(2, std::move(a1));
   auto a3 = std::make_unique<types::ArrayNode>(1, std::move(a2));
@@ -21,7 +23,9 @@ TEST(LLVMStrVisitorTest, GenerationTests) {
 }
 
 TEST(TypePeelingTest, GenerationTests) {
-  auto leaf = std::make_unique<types::LeafNode>(PrimitiveType::INT);
+  TypeManager typeManager;
+  auto leaf =
+      std::make_unique<types::LeafNode>(TypeManager::INT_TYPE_ID, typeManager);
   auto a1 = std::make_unique<types::ArrayNode>(3, std::move(leaf));
   auto a2 = std::make_unique<types::ArrayNode>(2, std::move(a1));
   auto a3 = std::make_unique<types::ArrayNode>(1, std::move(a2));
@@ -37,13 +41,17 @@ TEST(TypePeelingTest, GenerationTests) {
 }
 
 TEST(FunctionTreeTest, GenerationTests) {
-  auto intLeaf = std::make_unique<types::LeafNode>(PrimitiveType::INT);
+  TypeManager typeManager;
+  auto intLeaf =
+      std::make_unique<types::LeafNode>(TypeManager::INT_TYPE_ID, typeManager);
   auto arr = std::make_unique<types::ArrayNode>(3, std::move(intLeaf));
-  auto boolLeaf = std::make_unique<types::LeafNode>(PrimitiveType::BOOL);
+  auto boolLeaf =
+      std::make_unique<types::LeafNode>(TypeManager::BOOL_TYPE_ID, typeManager);
   std::vector<std::unique_ptr<types::TypeNode>> paramTypes;
   paramTypes.push_back(std::move(arr));
   paramTypes.push_back(std::move(boolLeaf));
-  auto ret = std::make_unique<types::LeafNode>(PrimitiveType::DOUBLE);
+  auto ret = std::make_unique<types::LeafNode>(TypeManager::DOUBLE_TYPE_ID,
+                                               typeManager);
   auto function = std::make_unique<types::FunctionNode>(std::move(paramTypes),
                                                         std::move(ret));
 

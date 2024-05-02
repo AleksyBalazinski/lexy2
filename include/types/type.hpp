@@ -1,10 +1,7 @@
 #pragma once
 #include <memory>
 #include <optional>
-#include "cloning_visitor.hpp"
-#include "llvm_str_visitor.hpp"
 #include "type_node.hpp"
-#include "type_visitor.hpp"
 
 namespace lexy2::types {
 class Type {

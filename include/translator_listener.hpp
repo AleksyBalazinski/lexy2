@@ -15,7 +15,7 @@
 #include "operations.hpp"
 #include "symbol_table.hpp"
 #include "type_manager.hpp"
-#include "utils.hpp"
+#include "types/type_node_factory.hpp"
 
 namespace lexy2 {
 
@@ -28,15 +28,13 @@ class TranslatorListener : public Lexy2BaseListener {
       functionParams;                     // TODO move it somewhere
   std::stack<types::Type> retTypesStack;  // TODO move it somewhere
   std::stack<std::string> functionNames;  // TODO move it somewhere
+  std::vector<std::string> fieldNames;
+  std::vector<types::Type> fieldTypes;
   int functionArgsCount = 0;
   std::stack<int> rankSpecStack;
   SymbolTable symbolTable;
   LLVMGenerator generator;
-  const int INT_TYPE_ID = static_cast<int>(PrimitiveType::INT);
-  const int DOUBLE_TYPE_ID = static_cast<int>(PrimitiveType::DOUBLE);
-  const int BOOL_TYPE_ID = static_cast<int>(PrimitiveType::BOOL);
-  const int FLOAT_TYPE_ID = static_cast<int>(PrimitiveType::FLOAT);
-  std::unordered_map<std::string, int> typeIDs;
+  types::TypeNodeFactory typeNodeFactory;
   TypeManager typeManager;
 
   ErrorHandler& errorHandler;
@@ -62,6 +60,11 @@ class TranslatorListener : public Lexy2BaseListener {
       Lexy2Parser::FunctionDeclarationContext* ctx) override;
   void exitFunctionDeclaration(
       Lexy2Parser::FunctionDeclarationContext* ctx) override;
+
+  void exitStructDeclaration(
+      Lexy2Parser::StructDeclarationContext* ctx) override;
+
+  void exitStructField(Lexy2Parser::StructFieldContext* ctx) override;
 
   void exitFunctionName(Lexy2Parser::FunctionNameContext* ctx) override;
 
@@ -141,6 +144,8 @@ class TranslatorListener : public Lexy2BaseListener {
   void exitElementIndex(Lexy2Parser::ElementIndexContext* ctx) override;
 
   void exitType(Lexy2Parser::TypeContext* ctx) override {}
+
+  void exitStructAccess(Lexy2Parser::StructAccessContext* ctx) override;
 
   void enterFunctionCall(Lexy2Parser::FunctionCallContext* ctx) override;
   void exitFunctionCall(Lexy2Parser::FunctionCallContext* ctx) override;

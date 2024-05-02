@@ -8,6 +8,8 @@
 #include <vector>
 #include "code_gen/graph.hpp"
 #include "function_param.hpp"
+#include "operations.hpp"
+#include "struct.hpp"
 #include "types/type.hpp"
 
 namespace lexy2 {
@@ -16,7 +18,6 @@ class LLVMGenerator {
  public:
   enum class Type { I32, I8, DOUBLE, I1, FLOAT };
   enum class BinOpName { SUB, ADD, DIV, MUL, REM, CMP, AND, OR, XOR };
-  enum class RelName { EQ, NE, GE, LE, GT, LT };
 
  private:
   std::string& getText() {
@@ -26,6 +27,7 @@ class LLVMGenerator {
   }
   std::string& getHeader() { return activeFunctions.top()->header; }
   std::string text;
+  std::string structsDeclarations;
   std::stack<Node*> functionDefs;
   std::stack<Node*> activeFunctions;
   Graph graph;
@@ -40,14 +42,16 @@ class LLVMGenerator {
   int whileEndNumber = 0;
 
   int arrayIndexNumber = 0;
+  int structIndexNumber = 0;
 
   int callRegisterNumber = 0;
 
   static std::string getOpPrefix(const types::Type& type, BinOpName op);
   static std::string getRelPrefix(const types::Type& type);
   static std::string getOperationString(BinOpName op);
-  static std::string getRelName(RelName relName);
-  static std::string getRelNamePrefix(RelName relName, const types::Type& type);
+  static std::string getRelName(Relation relName);
+  static std::string getRelNamePrefix(Relation relName,
+                                      const types::Type& type);
   static std::string getIndent();
 
  public:
@@ -56,7 +60,7 @@ class LLVMGenerator {
   std::string createBinOp(BinOpName op, const types::Type& type,
                           const std::string& arg1, const std::string& arg2);
 
-  std::string createRel(const types::Type& type, RelName relName,
+  std::string createRel(const types::Type& type, Relation relName,
                         const std::string& arg1, const std::string& arg2);
 
   void createAssignment(const types::Type& type, const std::string& identifier,
@@ -80,6 +84,8 @@ class LLVMGenerator {
                       const types::Type& retType);
   void exitFunction();
   void enterFunction();
+
+  void createStruct(const Struct& struct_);
 
   void createReturn(const types::Type& type, const std::string& arg);
   std::string createCall(const std::string& functionName,
@@ -105,10 +111,14 @@ class LLVMGenerator {
   std::string castFloatToI32(const std::string& val);
   std::string extFloatToDouble(const std::string& val);
 
-  std::string getElementPtrInBounds(const std::string& array,
-                                    const std::string& element,
-                                    const std::string& bounds,
-                                    bool isInternalPtr);
+  std::string getArrElementPtrInBounds(const std::string& array,
+                                       const std::string& element,
+                                       const std::string& bounds,
+                                       bool isInternalPtr);
+
+  std::string getStructElementPtrInBounds(const std::string& array,
+                                          const std::string& element,
+                                          const std::string& bounds);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);

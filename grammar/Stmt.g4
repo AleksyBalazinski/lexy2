@@ -18,12 +18,19 @@ printStatement: '__print' expr ';' # printIntrinsic;
 
 readStatement: '__read' expr ';' # readIntrinsic;
 
-declStatement: variableDeclaration | functionDeclaration;
+declStatement:
+	variableDeclaration
+	| functionDeclaration
+	| structDeclaration;
 
 variableDeclaration: 'let' IDENTIFIER (':' type)? '=' expr ';';
 
 functionDeclaration:
 	'fn' functionName '(' paramList ')' ('->' returnType)? functionBody;
+
+structDeclaration: 'struct' IDENTIFIER '{' structField* '}';
+
+structField: IDENTIFIER ':' type ';';
 
 functionName: IDENTIFIER;
 
