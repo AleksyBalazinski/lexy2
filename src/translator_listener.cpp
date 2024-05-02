@@ -99,11 +99,13 @@ Error<std::string> TranslatorListener::declareVariable(
   }
 
   if (declaredType.has_value()) {
-    if (declaredType->isLeaf()) {
+    if (declaredType->isLeaf() &&
+        !dynamic_cast<const types::LeafNode&>(declaredType->getRoot())
+             .isUserDefined()) {
       if (!areSameType(loadedInitializer.type, *declaredType)) {
         loadedInitializer = castRegister(loadedInitializer, *declaredType);
       }
-    } else if (declaredType->isArray()) {
+    } else {
       loadedInitializer.type = *declaredType;
     }
   }
@@ -118,7 +120,9 @@ Error<std::string> TranslatorListener::declareVariable(
   const auto& initializerType = loadedInitializer.type;
 
   generator.createDeclaration(initializerType, scopedIdentifier, false);
-  if (!declaredType->isArray()) {
+  if (initializerType.isLeaf() &&
+      !dynamic_cast<const types::LeafNode&>(initializerType.getRoot())
+           .isUserDefined()) {
     generator.createAssignment(initializerType, scopedIdentifier,
                                loadedInitializer.name, false);
   }
@@ -216,6 +220,52 @@ void TranslatorListener::exitFunctionDeclaration(
   retTypesStack.pop();
   functionNames.pop();
   generator.exitFunction();
+}
+
+void TranslatorListener::exitStructDeclaration(
+    Lexy2Parser::StructDeclarationContext* ctx) {
+  auto structName = ctx->IDENTIFIER()->getText();
+  if (!typeManager.addType(structName)) {
+    errorHandler.reportError(utils::getLineCol(ctx),
+                             "Type name '" + structName + "' already declared");
+    inErrorMode = true;
+    return;
+  }
+  auto typeID = *typeManager.getTypeID(structName);
+  Struct struct_;
+  struct_.name = std::move(structName);
+
+  int fieldsCnt = fieldNames.size();
+  for (int i = 0; i < fieldsCnt; ++i) {
+    const auto& fieldName = fieldNames[i];
+    const auto& fieldType = fieldTypes[i];
+    auto it = std::find_if(
+        struct_.fields.begin(), struct_.fields.end(),
+        [&fieldName](const std::pair<std::string, types::Type>& x) {
+          return x.first == fieldName;
+        });
+    if (it != struct_.fields.end()) {
+      errorHandler.reportError(utils::getLineCol(ctx),
+                               "Redefinition of field '" + fieldName +
+                                   "' in struct '" + struct_.name);
+      inErrorMode = true;
+      return;
+    }
+    struct_.fields.emplace_back(std::move(fieldName), std::move(fieldType));
+  }
+
+  generator.createStruct(struct_);
+  typeManager.addStruct(typeID, std::move(struct_));
+
+  fieldNames.clear();
+  fieldTypes.clear();
+}
+
+void TranslatorListener::exitStructField(Lexy2Parser::StructFieldContext* ctx) {
+  auto fieldName = ctx->IDENTIFIER()->getText();
+
+  fieldNames.emplace_back(std::move(fieldName));
+  fieldTypes.emplace_back(std::move(currTypeNode));
 }
 
 void TranslatorListener::exitFunctionName(

@@ -22,6 +22,10 @@ bool LeafNode::isFloatingPoint() const {
          typeID == TypeManager::DOUBLE_TYPE_ID;
 }
 
+bool LeafNode::isUserDefined() const {
+  return !typeManager.isPrimitiveType(typeID);
+}
+
 std::optional<TypeManager::TyID> LeafNode::getSimpleTypeId() const {
   return typeID;
 }

@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "operations.hpp"
+#include "struct.hpp"
 #include "types/type.hpp"
 
 namespace lexy2 {
@@ -18,6 +19,10 @@ class TypeManager {
   bool isOperatorSupported(Operator op, const types::Type& type) const;
 
   bool addType(const std::string& typeName);
+
+  bool addStruct(TyID typeID, Struct&& struct_);
+
+  const Struct& getStruct(TyID typeID) const;
 
   std::optional<TyID> getTypeID(const std::string& typeName) const;
 
@@ -56,6 +61,8 @@ class TypeManager {
   };
 
   std::unordered_map<std::string, TyID> typeIDs;
+
+  std::unordered_map<TyID, Struct> structs;
 
   std::unordered_set<TyID> primitiveTypeIDs;
 

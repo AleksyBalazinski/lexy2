@@ -9,6 +9,7 @@
 #include "code_gen/graph.hpp"
 #include "function_param.hpp"
 #include "operations.hpp"
+#include "struct.hpp"
 #include "types/type.hpp"
 
 namespace lexy2 {
@@ -26,6 +27,7 @@ class LLVMGenerator {
   }
   std::string& getHeader() { return activeFunctions.top()->header; }
   std::string text;
+  std::string structsDeclarations;
   std::stack<Node*> functionDefs;
   std::stack<Node*> activeFunctions;
   Graph graph;
@@ -81,6 +83,8 @@ class LLVMGenerator {
                       const types::Type& retType);
   void exitFunction();
   void enterFunction();
+
+  void createStruct(const Struct& struct_);
 
   void createReturn(const types::Type& type, const std::string& arg);
   std::string createCall(const std::string& functionName,

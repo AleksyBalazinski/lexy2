@@ -212,6 +212,19 @@ void LLVMGenerator::enterFunction() {
   graph.insertNode(std::move(node));
 }
 
+void LLVMGenerator::createStruct(const Struct& struct_) {
+  std::string structStr;
+  structStr += "%struct." + struct_.name + " = type { ";
+  const char* delim = "";
+  for (const auto& field : struct_.fields) {
+    structStr += delim + field.second.getLLVMString(false);
+    delim = ", ";
+  }
+  structStr += " }";
+
+  structsDeclarations += structStr + "\n";
+}
+
 void LLVMGenerator::createReturn(const types::Type& type,
                                  const std::string& arg) {
   getText() +=
@@ -396,6 +409,7 @@ std::string LLVMGenerator::emitCode(const std::string& source_filename) {
       "target triple = \"x86_64-w64-windows-gnu\"\n\n";  // TODO: obtain this somehow
   code += getPrintfFormatStrings() + "\n";
   code += getCStdLibDeclarations() + "\n";
+  code += structsDeclarations + (structsDeclarations.empty() ? "" : "\n");
   TopologicalSorter sorter;
   auto orderedFunctions = sorter.getOrdered(graph);
   std::string functionDefinitions;

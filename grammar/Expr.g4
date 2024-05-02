@@ -70,7 +70,11 @@ literal:
 	| FLOAT_LITERAL	# FloatLiteral
 	| BOOL_LITERAL	# BoolLiteral;
 
-elementAccess: identifier elementIndex+;
+elementAccess: structAccess | arrayAccess;
+
+structAccess: identifier '.' IDENTIFIER;
+
+arrayAccess: identifier elementIndex+;
 
 elementIndex: '[' expr ']';
 

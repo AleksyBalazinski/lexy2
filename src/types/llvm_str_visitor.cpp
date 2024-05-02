@@ -24,6 +24,12 @@ std::string getTypeString(TypeManager::TyID typeID, bool boolAsI1) {
 }
 
 void types::LLVMStrVisitor::visit(const LeafNode& LeafNode) {
+  if (LeafNode.isUserDefined()) {
+    auto typeID = LeafNode.getTypeID();
+    const auto& struct_ = LeafNode.typeManager.getStruct(typeID);
+    text = "%struct." + struct_.name;
+    return;
+  }
   text = getTypeString(LeafNode.getTypeID(), boolAsI1);
 }
 

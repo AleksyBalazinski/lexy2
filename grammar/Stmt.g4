@@ -30,7 +30,7 @@ functionDeclaration:
 
 structDeclaration: 'struct' IDENTIFIER '{' structField+ '}';
 
-structField: IDENTIFIER ':' type;
+structField: IDENTIFIER ':' type ';';
 
 functionName: IDENTIFIER;
 

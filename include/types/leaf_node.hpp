@@ -19,6 +19,8 @@ class LeafNode : public TypeNode {
 
   virtual bool isFloatingPoint() const override;
 
+  bool isUserDefined() const;
+
   virtual std::optional<int> getSimpleTypeId() const override;
 
   virtual std::optional<TypeNode*> getChild() const override;

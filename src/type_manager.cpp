@@ -46,6 +46,19 @@ bool TypeManager::addType(const std::string& typeName) {
   return true;
 }
 
+bool TypeManager::addStruct(TyID typeID, Struct&& struct_) {
+  if (structs.find(typeID) != structs.end()) {
+    return false;
+  }
+
+  structs.insert(std::make_pair(typeID, std::move(struct_)));
+  return true;
+}
+
+const Struct& TypeManager::getStruct(TyID typeID) const {
+  return structs.at(typeID);
+}
+
 std::optional<TypeManager::TyID> TypeManager::getTypeID(
     const std::string& typeName) const {
   if (typeIDs.find(typeName) == typeIDs.end()) {
