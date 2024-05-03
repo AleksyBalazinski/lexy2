@@ -34,6 +34,10 @@ bool Type::isArray() const {
   return dynamic_cast<ArrayNode*>(root.get()) != nullptr;
 }
 
+bool Type::isReference() const {
+  return dynamic_cast<ReferenceNode*>(root.get()) != nullptr;
+}
+
 std::optional<int> Type::getSimpleTypeId() const {
   return root->getSimpleTypeId();
 }

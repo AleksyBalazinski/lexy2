@@ -116,9 +116,10 @@ class LLVMGenerator {
                                        const std::string& bounds,
                                        bool isInternalPtr);
 
-  std::string getStructElementPtrInBounds(const std::string& array,
+  std::string getStructElementPtrInBounds(const std::string& structName,
                                           const std::string& element,
-                                          const std::string& bounds);
+                                          const std::string& bounds,
+                                          bool isInternalPtr = false);
 
   void printI32(const std::string& id);
   void printDouble(const std::string& id);

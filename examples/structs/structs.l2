@@ -8,6 +8,11 @@ struct Car {
     maxSpeed: double;
 }
 
+fn setDogAge(dog: Dog&, x: int) -> int {
+    dog.age = x;
+    return 0;
+}
+
 let doggy: Dog = 0;
 doggy.age = 10;
 doggy.weight = 12.34;
@@ -19,3 +24,10 @@ mustang.milage = 3342.34;
 mustang.maxSpeed = 215.2;
 __print mustang.milage;
 __print mustang.maxSpeed;
+
+let doggo: Dog = 0;
+doggo.age = 13;
+doggo.weight = 123.34;
+
+setDogAge(doggo, 150);
+__print doggo.age;

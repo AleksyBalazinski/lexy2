@@ -24,6 +24,8 @@ class Type {
 
   bool isArray() const;
 
+  bool isReference() const;
+
   std::optional<int> getSimpleTypeId() const;
 
   std::optional<Type> getPeeledType() const;
