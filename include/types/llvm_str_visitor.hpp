@@ -4,6 +4,7 @@
 #include "array_node.hpp"
 #include "function_node.hpp"
 #include "leaf_node.hpp"
+#include "reference_node.hpp"
 
 namespace lexy2::types {
 class LLVMStrVisitor : public TypeVisitor {
@@ -18,6 +19,8 @@ class LLVMStrVisitor : public TypeVisitor {
   virtual void visit(const LeafNode& LeafNode) override;
 
   virtual void visit(const FunctionNode& functionNode) override;
+
+  virtual void visit(const ReferenceNode& referenceNode) override;
 
   std::string getStr() const;
 

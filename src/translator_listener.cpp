@@ -320,12 +320,13 @@ void TranslatorListener::enterFunctionBody(
 
   for (const auto& param : functionParams.top()) {
     const auto& paramType = param.type;
-    if (!paramType.isLeaf()) {
+    if (paramType.isArray()) {
       throw std::runtime_error("Not implemented");
     }
-    auto typeID = *paramType.getSimpleTypeId();
+
     const auto scopedIdentifier = param.name + symbolTable.getCurrentScopeID();
-    if (typeID == typeManager.BOOL_TYPE_ID) {
+    if (paramType.isLeaf() &&
+        *paramType.getSimpleTypeId() == TypeManager::BOOL_TYPE_ID) {
       auto extParam = generator.extI1toI8("%" + param.name);
       generator.createDeclaration(paramType, scopedIdentifier, false);
       generator.createAssignment(paramType, scopedIdentifier, extParam, false);
@@ -1015,10 +1016,22 @@ void TranslatorListener::exitStructAccess(
   valueStack.pop();
 
   if (!struct_.type.isLeaf()) {
-    errorHandler.reportError(utils::getLineCol(ctx),
-                             "Can't apply access operator to non-struct type");
-    inErrorMode = true;
-    return;
+    if (struct_.type.isReference()) {
+      auto child = *struct_.type.getRoot().getChild();
+      if (!child->isLeaf()) {
+        errorHandler.reportError(
+            utils::getLineCol(ctx),
+            "Can't apply access operator to non-struct type");
+        inErrorMode = true;
+        return;
+      }
+    } else {
+      errorHandler.reportError(
+          utils::getLineCol(ctx),
+          "Can't apply access operator to non-struct type");
+      inErrorMode = true;
+      return;
+    }
   }
 
   auto typeID = *struct_.type.getSimpleTypeId();
@@ -1029,10 +1042,9 @@ void TranslatorListener::exitStructAccess(
     return;
   }
 
-  auto typeStr = struct_.type.getLLVMString(false);
   auto fieldName = ctx->IDENTIFIER()->getText();
-
   const auto& fields = typeManager.getStruct(typeID).fields;
+
   auto it =
       std::find_if(fields.begin(), fields.end(),
                    [&fieldName](const std::pair<std::string, types::Type>& x) {
@@ -1046,9 +1058,22 @@ void TranslatorListener::exitStructAccess(
     return;
   }
 
+  std::string typeStr;
+  std::string name;
+  bool isInternalPtr = false;
+  if (struct_.type.isReference()) {
+    auto child = *struct_.type.getRoot().getChild();
+    auto childType = types::Type(types::cloneNode(*child));
+    name = generator.createLoad(struct_.type, struct_.name, false);
+    typeStr = childType.getLLVMString(false);
+    isInternalPtr = true;
+  } else {
+    name = struct_.name;
+    typeStr = struct_.type.getLLVMString(false);
+  }
   int fieldIdx = std::distance(std::begin(fields), it);
   auto structIdx = generator.getStructElementPtrInBounds(
-      struct_.name, std::to_string(fieldIdx), typeStr);
+      name, std::to_string(fieldIdx), typeStr, isInternalPtr);
 
   valueStack.push(Value(structIdx, it->second, Value::Category::INTERNAL_PTR));
 }
@@ -1064,16 +1089,16 @@ void TranslatorListener::exitFunctionCall(
     return;
 
   std::vector<FunctionParam> args;
+  std::vector<bool> shouldLoad;
 
   for (int i = 0; i < functionArgsCount; ++i) {
     auto value = std::move(valueStack.top());
     valueStack.pop();
-    if (value.isInMemory()) {
-      value = load(value);
-    }
     args.push_back(FunctionParam(value.name, value.type));
+    shouldLoad.push_back(value.isInMemory());
   }
   std::reverse(args.begin(), args.end());
+  std::reverse(shouldLoad.begin(), shouldLoad.end());
 
   auto function = std::move(valueStack.top());
   valueStack.pop();
@@ -1098,9 +1123,20 @@ void TranslatorListener::exitFunctionCall(
       inErrorMode = true;
       return;
     }
+    if (shouldLoad[i]) {
+      if (dynamic_cast<const types::ReferenceNode*>(paramTypes[i].get()) ==
+          nullptr) {
+        Value arg(args[i].name, args[i].type);
+        arg = load(arg);
+        args[i] = FunctionParam(arg.name, arg.type);
+      } else {
+        auto& arg = args[i];
+        args[i] = FunctionParam(arg.name,
+                                types::Type(types::cloneNode(*paramTypes[i])));
+      }
+    }
   }
 
-  auto typeID = *functionNode.getReturnType()->getSimpleTypeId();
   auto retType = types::Type(types::cloneNode(*functionNode.getReturnType()));
   auto callResult = generator.createCall(function.name, args, retType);
   valueStack.push(Value(callResult, retType));
@@ -1139,6 +1175,11 @@ void TranslatorListener::exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) {
     return;
   }
   currTypeNode = typeNodeFactory.createLeafNode(*typeID);
+}
+
+void TranslatorListener::exitReferenceType(Lexy2Parser::ReferenceTypeContext*) {
+  currTypeNode =
+      std::make_unique<types::ReferenceNode>(std::move(currTypeNode));
 }
 
 std::string TranslatorListener::getCode(const std::string& sourceFilename) {

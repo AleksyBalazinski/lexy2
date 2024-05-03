@@ -2,6 +2,7 @@
 
 namespace lexy2::types {
 LLVMStrVisitor::LLVMStrVisitor(bool boolAsI1) : boolAsI1(boolAsI1) {}
+
 void types::LLVMStrVisitor::visit(const ArrayNode& arrayType) {
   auto child = *arrayType.getChild();
   child->accept(*this);
@@ -34,7 +35,7 @@ void types::LLVMStrVisitor::visit(const LeafNode& LeafNode) {
 }
 
 void types::LLVMStrVisitor::visit(const FunctionNode& functionNode) {
-  // TODO this doesn't return nothing useful, should be moved to some debugging visitor
+  // TODO this doesn't return anything useful, should be moved to some debugging visitor
   //throw std::runtime_error("Not implemented");
   std::string functionTypeStr;
   const auto& paramTypes = functionNode.getParamTypes();
@@ -48,6 +49,12 @@ void types::LLVMStrVisitor::visit(const FunctionNode& functionNode) {
   returnType->accept(*this);
   functionTypeStr += text;
   text = functionTypeStr;
+}
+
+void types::LLVMStrVisitor::visit(const ReferenceNode& referenceNode) {
+  auto child = *referenceNode.getChild();
+  child->accept(*this);
+  text = text + "*";
 }
 
 std::string types::LLVMStrVisitor::getStr() const {

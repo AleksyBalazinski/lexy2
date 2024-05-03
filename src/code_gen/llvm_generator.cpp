@@ -174,7 +174,7 @@ void LLVMGenerator::createFunction(const std::string& functionName,
   for (const auto& param : params) {
     const auto& name = param.name;
     const auto& type = param.type;
-    if (!type.isLeaf()) {
+    if (type.isArray()) {
       throw std::runtime_error("Not implemented");
     }
     auto typeStr = type.getLLVMString(true);
@@ -237,7 +237,13 @@ std::string LLVMGenerator::createCall(const std::string& functionName,
   std::string argsString;
   const char* sep = "";
   for (const auto& arg : args) {
-    argsString += sep + arg.type.getLLVMString(true) + " noundef " + arg.name;
+    if (!arg.type.isReference()) {
+      argsString += sep + arg.type.getLLVMString(true) + " noundef " + arg.name;
+    } else {
+      argsString +=
+          sep + arg.type.getLLVMString(true) + " noundef %" + arg.name;
+    }
+
     sep = ", ";
   }
   auto callReg = getNumberedLabel("call", callRegisterNumber);
@@ -352,12 +358,12 @@ std::string LLVMGenerator::extFloatToDouble(const std::string& val) {
 
 std::string LLVMGenerator::getStructElementPtrInBounds(
     const std::string& structName, const std::string& element,
-    const std::string& bounds) {
+    const std::string& bounds, bool isInternalPtr) {
   const auto structIdxStr =
       "%" + getNumberedLabel("structIdx", structIndexNumber);
+  auto structStr = (isInternalPtr ? "" : "%") + structName;
   getText() += getIndent() + structIdxStr + " = getelementptr inbounds " +
-               bounds + ", ptr %" + structName + ", i32 0, i32 " + element +
-               "\n";
+               bounds + ", ptr " + structStr + ", i32 0, i32 " + element + "\n";
   return structIdxStr;
 }
 

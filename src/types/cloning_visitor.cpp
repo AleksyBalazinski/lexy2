@@ -23,6 +23,12 @@ void CloningVisitor::visit(const FunctionNode& functionNode) {
   node = std::make_unique<FunctionNode>(std::move(paramNodes), std::move(node));
 }
 
+void CloningVisitor::visit(const ReferenceNode& referenceNode) {
+  auto child = *referenceNode.getChild();
+  child->accept(*this);
+  node = std::make_unique<ReferenceNode>(std::move(node));
+}
+
 std::unique_ptr<TypeNode> CloningVisitor::getClone() {
   return std::move(node);
 }

@@ -158,6 +158,8 @@ class TranslatorListener : public Lexy2BaseListener {
 
   void exitSimpleType(Lexy2Parser::SimpleTypeContext* ctx) override;
 
+  void exitReferenceType(Lexy2Parser::ReferenceTypeContext* ctx) override;
+
   std::string getCode(const std::string& sourceFilename);
 
  private:

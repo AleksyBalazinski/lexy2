@@ -2,7 +2,7 @@ grammar Types;
 
 import Expr;
 
-type: arrayType | pointerType | simpleType;
+type: arrayType | referenceType | simpleType;
 
 arrayType: nonArrayType rankSpecifier+;
 
@@ -10,6 +10,6 @@ rankSpecifier: '[' INTEGER_LITERAL ']';
 
 simpleType: IDENTIFIER;
 
-nonArrayType: pointerType | simpleType;
+nonArrayType: referenceType | simpleType;
 
-pointerType: simpleType '*'+ | 'void' '*'+;
+referenceType: simpleType '&';
