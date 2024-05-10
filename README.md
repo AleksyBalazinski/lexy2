@@ -1,5 +1,6 @@
 # Lexy2
 Compiler for my programming language.
+The language reference can be viewed [here](https://www.overleaf.com/read/rsspjrdhshjf#20c5f8).
 
 ## Building the project
 Note that this will download and build the ANTLR runtime so it will take a while to build the project for the first time.
