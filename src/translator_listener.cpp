@@ -987,6 +987,8 @@ void TranslatorListener::exitElementIndex(
   }
   if (idx.isInMemory()) {
     idx = load(idx);
+  }
+  if (idx.category != Value::Category::CONSTANT) {
     idx.name = generator.extI32toI64(idx.name);
   }
 

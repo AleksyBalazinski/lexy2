@@ -185,7 +185,7 @@ void TranslatorListener::assignToVariable(const Value& lhs, Value& value,
     return;
   }
 
-  if (value.category == Value::Category::MEMORY) {
+  if (value.isInMemory()) {
     value = load(value);
   }
   auto variable = iter->second;
@@ -244,7 +244,7 @@ void TranslatorListener::assignToInternalPtr(
     Lexy2Parser::AssignContext*
         ctx) {  // this is a wild code duplication but I don't care
 
-  if (value.category == Value::Category::MEMORY) {
+  if (value.isInMemory()) {
     value = load(value);
   }
 
